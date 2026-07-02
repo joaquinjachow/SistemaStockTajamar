@@ -1,0 +1,14 @@
+.vs/
+bin/
+obj/
+packages/
+Backups/
+Reportes/
+*.db
+*.sqlite
+*.sqlite3
+*.xlsx
+*.pdb
+*.suo
+*.user
+*.nupkg
