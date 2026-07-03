@@ -110,6 +110,7 @@ namespace ControlStock
             grdMovimientos.Location = new Point(16, 82);
             grdMovimientos.ReadOnly = true;
             grdMovimientos.Size = new Size(940, 470);
+            grdMovimientos.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
 
             ClientSize = new Size(972, 568);
             Controls.Add(lblBuscar);
@@ -141,6 +142,7 @@ namespace ControlStock
             cmbSede.DisplayMember = "Nombre";
             cmbTipo.SelectedIndex = 0;
             cmbRubro.SelectedIndex = 0;
+            btnExportar.Visible = clsSesion.PuedeExportar;
             CargarMovimientos();
         }
 
@@ -163,6 +165,11 @@ namespace ControlStock
         {
             try
             {
+                if (!clsSesion.PuedeExportar)
+                {
+                    MessageBox.Show("El usuario actual no tiene permiso para exportar historial.");
+                    return;
+                }
                 if (!FechasValidas())
                 {
                     return;

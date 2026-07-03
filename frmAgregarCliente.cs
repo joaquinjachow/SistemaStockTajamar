@@ -12,7 +12,8 @@ namespace ControlStock
         private TextBox txtTelefono;
         private TextBox txtCuit;
         private TextBox txtEmail;
-        private TextBox txtCuentaBancaria;
+        private ComboBox cmbCondicionIva;
+        private TextBox txtDireccionLegal;
         private TextBox txtObservaciones;
 
         public frmAgregarCliente()
@@ -31,19 +32,20 @@ namespace ControlStock
 
             grpDatos.Location = new Point(12, 12);
             grpDatos.Name = "grpDatos";
-            grpDatos.Size = new Size(560, 360);
+            grpDatos.Size = new Size(560, 405);
             grpDatos.TabStop = false;
             grpDatos.Text = "Agregar cliente";
 
             txtEmpresa = AgregarCampo(grpDatos, "Empresa:", 30);
-            txtDireccion = AgregarCampo(grpDatos, "Direccion de envio:", 70);
+            txtDireccion = AgregarCampo(grpDatos, "Direccion comercial:", 70);
             txtTelefono = AgregarCampo(grpDatos, "Telefono:", 110);
             txtCuit = AgregarCampo(grpDatos, "CUIT:", 150);
             txtEmail = AgregarCampo(grpDatos, "Email:", 190);
-            txtCuentaBancaria = AgregarCampo(grpDatos, "Cuenta bancaria:", 230);
-            txtObservaciones = AgregarCampo(grpDatos, "Observaciones:", 270);
+            cmbCondicionIva = AgregarCombo(grpDatos, "Condicion frente al IVA:", 230);
+            txtDireccionLegal = AgregarCampo(grpDatos, "Direccion legal:", 270);
+            txtObservaciones = AgregarCampo(grpDatos, "Observaciones:", 310);
 
-            btnAgregar.Location = new Point(390, 315);
+            btnAgregar.Location = new Point(390, 360);
             btnAgregar.Name = "btnAgregar";
             btnAgregar.Size = new Size(145, 30);
             btnAgregar.Text = "Guardar cliente";
@@ -53,7 +55,7 @@ namespace ControlStock
 
             AutoScaleDimensions = new SizeF(6F, 13F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(584, 384);
+            ClientSize = new Size(584, 429);
             Controls.Add(grpDatos);
             Name = "frmAgregarCliente";
             StartPosition = FormStartPosition.CenterScreen;
@@ -78,6 +80,23 @@ namespace ControlStock
             grupo.Controls.Add(textBox);
             return textBox;
         }
+        private ComboBox AgregarCombo(GroupBox grupo, string texto, int y)
+        {
+            Label label = new Label();
+            ComboBox comboBox = new ComboBox();
+
+            label.AutoSize = true;
+            label.Location = new Point(18, y + 3);
+            label.Text = texto;
+            comboBox.Location = new Point(170, y);
+            comboBox.Size = new Size(365, 21);
+            comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBox.Items.AddRange(clsCliente.ObtenerCondicionesIva());
+            comboBox.SelectedIndex = 0;
+            grupo.Controls.Add(label);
+            grupo.Controls.Add(comboBox);
+            return comboBox;
+        }
 
         private void btnAgregar_Click(object sender, EventArgs e)
         {
@@ -90,7 +109,7 @@ namespace ControlStock
                     return;
                 }
 
-                cliente.AgregarCliente(txtEmpresa.Text.Trim(), txtDireccion.Text.Trim(), txtTelefono.Text.Trim(), txtCuit.Text.Trim(), txtEmail.Text.Trim(), txtCuentaBancaria.Text.Trim(), txtObservaciones.Text.Trim());
+                cliente.AgregarCliente(txtEmpresa.Text.Trim(), txtDireccion.Text.Trim(), txtTelefono.Text.Trim(), txtCuit.Text.Trim(), txtEmail.Text.Trim(), cmbCondicionIva.Text.Trim(), txtDireccionLegal.Text.Trim(), txtObservaciones.Text.Trim());
                 MessageBox.Show("Cliente agregado correctamente.");
                 LimpiarCampos();
                 txtEmpresa.Focus();
@@ -112,7 +131,8 @@ namespace ControlStock
             txtTelefono.Text = string.Empty;
             txtCuit.Text = string.Empty;
             txtEmail.Text = string.Empty;
-            txtCuentaBancaria.Text = string.Empty;
+            cmbCondicionIva.SelectedIndex = 0;
+            txtDireccionLegal.Text = string.Empty;
             txtObservaciones.Text = string.Empty;
         }
     }

@@ -8,6 +8,7 @@ namespace ControlStock
     public class frmListadoClientes : Form
     {
         private readonly clsCliente cliente;
+        private GroupBox grpListado;
         private DataGridView grdClientes;
         private TextBox txtBuscar;
         private Button btnBuscar;
@@ -25,8 +26,8 @@ namespace ControlStock
 
         private void InitializeComponent()
         {
-            GroupBox grpListado = new GroupBox();
             Label lblBuscar = new Label();
+            grpListado = new GroupBox();
             txtBuscar = new TextBox();
             btnBuscar = new Button();
             btnListar = new Button();
@@ -50,6 +51,7 @@ namespace ControlStock
             grpListado.Location = new Point(12, 12);
             grpListado.Name = "grpListado";
             grpListado.Size = new Size(980, 500);
+            grpListado.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             grpListado.TabStop = false;
             grpListado.Text = "Listado de clientes";
 
@@ -80,6 +82,7 @@ namespace ControlStock
             btnGuardar.Location = new Point(19, 458);
             btnGuardar.Name = "btnGuardar";
             btnGuardar.Size = new Size(130, 27);
+            btnGuardar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnGuardar.Text = "Guardar cambios";
             btnGuardar.UseVisualStyleBackColor = true;
             btnGuardar.Click += btnGuardar_Click;
@@ -87,6 +90,7 @@ namespace ControlStock
             btnEliminar.Location = new Point(158, 458);
             btnEliminar.Name = "btnEliminar";
             btnEliminar.Size = new Size(105, 27);
+            btnEliminar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnEliminar.Text = "Eliminar";
             btnEliminar.UseVisualStyleBackColor = true;
             btnEliminar.Click += btnEliminar_Click;
@@ -94,6 +98,7 @@ namespace ControlStock
             btnExportar.Location = new Point(275, 458);
             btnExportar.Name = "btnExportar";
             btnExportar.Size = new Size(130, 27);
+            btnExportar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnExportar.Text = "Exportar Excel";
             btnExportar.UseVisualStyleBackColor = true;
             btnExportar.Click += btnExportar_Click;
@@ -106,6 +111,8 @@ namespace ControlStock
             grdClientes.Name = "grdClientes";
             grdClientes.ReadOnly = false;
             grdClientes.Size = new Size(946, 380);
+            grdClientes.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            grdClientes.DataError += grdClientes_DataError;
 
             AutoScaleDimensions = new SizeF(6F, 13F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -115,6 +122,7 @@ namespace ControlStock
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Listado Clientes";
             Load += frmListadoClientes_Load;
+            Resize += (sender, args) => AjustarLayout();
 
             grpListado.ResumeLayout(false);
             grpListado.PerformLayout();
@@ -124,6 +132,7 @@ namespace ControlStock
 
         private void frmListadoClientes_Load(object sender, EventArgs e)
         {
+            AplicarPermisos();
             CargarListadoCompleto();
         }
 
@@ -138,7 +147,7 @@ namespace ControlStock
             {
                 DataTable tabla = cliente.BuscarClientes(txtBuscar.Text.Trim());
                 grdClientes.DataSource = tabla;
-                BloquearIdCliente();
+                ConfigurarColumnas();
             }
             catch (Exception ex)
             {
@@ -151,7 +160,7 @@ namespace ControlStock
             try
             {
                 grdClientes.DataSource = cliente.ListarClientes();
-                BloquearIdCliente();
+                ConfigurarColumnas();
             }
             catch (Exception ex)
             {
@@ -163,6 +172,11 @@ namespace ControlStock
         {
             try
             {
+                if (!clsSesion.PuedeEditar)
+                {
+                    MessageBox.Show("El usuario actual no tiene permiso para editar clientes.");
+                    return;
+                }
                 if (grdClientes.CurrentRow == null)
                 {
                     MessageBox.Show("Seleccione un cliente.");
@@ -171,7 +185,7 @@ namespace ControlStock
 
                 grdClientes.EndEdit();
                 DataRowView row = (DataRowView)grdClientes.CurrentRow.DataBoundItem;
-                cliente.EditarCliente(Convert.ToInt64(row["IdCliente"]), row["Empresa"].ToString(), row["Direccion"].ToString(), row["Telefono"].ToString(), row["Cuit"].ToString(), row["Email"].ToString(), row["CuentaBancaria"].ToString(), row["Observaciones"].ToString());
+                cliente.EditarCliente(Convert.ToInt64(row["IdCliente"]), Valor(row, "Empresa"), Valor(row, "DireccionComercial"), Valor(row, "Telefono"), Valor(row, "Cuit"), Valor(row, "Email"), Valor(row, "CondicionIva"), Valor(row, "DireccionLegal"), Valor(row, "Observaciones"));
                 MessageBox.Show("Cliente actualizado correctamente.");
                 CargarListadoCompleto();
             }
@@ -189,6 +203,11 @@ namespace ControlStock
         {
             try
             {
+                if (!clsSesion.PuedeEditar)
+                {
+                    MessageBox.Show("El usuario actual no tiene permiso para eliminar clientes.");
+                    return;
+                }
                 if (grdClientes.CurrentRow == null)
                 {
                     MessageBox.Show("Seleccione un cliente.");
@@ -216,6 +235,11 @@ namespace ControlStock
         {
             try
             {
+                if (!clsSesion.PuedeExportar)
+                {
+                    MessageBox.Show("El usuario actual no tiene permiso para exportar clientes.");
+                    return;
+                }
                 string archivo = clsReportes.GenerarReporteClientes(txtBuscar.Text.Trim());
                 MessageBox.Show("Reporte de clientes generado correctamente: " + archivo);
             }
@@ -225,12 +249,97 @@ namespace ControlStock
             }
         }
 
-        private void BloquearIdCliente()
+        private void ConfigurarColumnas()
         {
             if (grdClientes.Columns.Contains("IdCliente"))
             {
                 grdClientes.Columns["IdCliente"].ReadOnly = true;
+                grdClientes.Columns["IdCliente"].HeaderText = "ID";
             }
+
+            if (grdClientes.Columns.Contains("Empresa"))
+            {
+                grdClientes.Columns["Empresa"].HeaderText = "Empresa";
+            }
+
+            if (grdClientes.Columns.Contains("DireccionComercial"))
+            {
+                grdClientes.Columns["DireccionComercial"].HeaderText = "Direccion comercial";
+            }
+
+            if (grdClientes.Columns.Contains("Telefono"))
+            {
+                grdClientes.Columns["Telefono"].HeaderText = "Telefono";
+            }
+
+            if (grdClientes.Columns.Contains("Cuit"))
+            {
+                grdClientes.Columns["Cuit"].HeaderText = "CUIT";
+            }
+
+            if (grdClientes.Columns.Contains("Email"))
+            {
+                grdClientes.Columns["Email"].HeaderText = "Email";
+            }
+
+            if (grdClientes.Columns.Contains("CondicionIva") && !(grdClientes.Columns["CondicionIva"] is DataGridViewComboBoxColumn))
+            {
+                int indice = grdClientes.Columns["CondicionIva"].Index;
+                grdClientes.Columns.Remove("CondicionIva");
+
+                DataGridViewComboBoxColumn columnaCondicion = new DataGridViewComboBoxColumn();
+                columnaCondicion.Name = "CondicionIva";
+                columnaCondicion.DataPropertyName = "CondicionIva";
+                columnaCondicion.HeaderText = "Condicion frente al IVA";
+                columnaCondicion.FlatStyle = FlatStyle.Flat;
+                columnaCondicion.Items.AddRange(clsCliente.ObtenerCondicionesIva());
+                grdClientes.Columns.Insert(indice, columnaCondicion);
+            }
+
+            if (grdClientes.Columns.Contains("DireccionLegal"))
+            {
+                grdClientes.Columns["DireccionLegal"].HeaderText = "Direccion legal";
+            }
+
+            if (grdClientes.Columns.Contains("Observaciones"))
+            {
+                grdClientes.Columns["Observaciones"].HeaderText = "Observaciones";
+            }
+            grdClientes.ReadOnly = !clsSesion.PuedeEditar;
+        }
+        private void AplicarPermisos()
+        {
+            bool puedeEditar = clsSesion.PuedeEditar;
+            bool puedeExportar = clsSesion.PuedeExportar;
+
+            grdClientes.ReadOnly = !puedeEditar;
+            btnGuardar.Visible = puedeEditar;
+            btnEliminar.Visible = puedeEditar;
+            btnExportar.Visible = puedeExportar;
+            AjustarLayout();
+        }
+        private void AjustarLayout()
+        {
+            if (grdClientes == null || btnGuardar == null)
+            {
+                return;
+            }
+
+            bool muestraBotones = btnGuardar.Visible || btnEliminar.Visible || btnExportar.Visible;
+            int margenInferior = muestraBotones ? 54 : 18;
+            grdClientes.Height = Math.Max(150, grpListado.ClientSize.Height - grdClientes.Top - margenInferior);
+        }
+        private static string Valor(DataRowView row, string columna)
+        {
+            if (!row.Row.Table.Columns.Contains(columna) || row[columna] == DBNull.Value)
+            {
+                return string.Empty;
+            }
+            return row[columna].ToString();
+        }
+        private void grdClientes_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.ThrowException = false;
         }
     }
 }

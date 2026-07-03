@@ -11,10 +11,7 @@ namespace ControlStock
         {
             using (XLWorkbook workbook = new XLWorkbook())
             {
-                AgregarHoja(workbook, "Pino", clsStockRepository.ListarPino(sede));
-                AgregarHoja(workbook, "MaderaDura", clsStockRepository.ListarMaderaDura(sede));
-                AgregarHoja(workbook, "Machimbre", clsStockRepository.ListarMachimbre(sede));
-                AgregarHoja(workbook, "Fenolicos", clsStockRepository.ListarFenolicos(sede));
+                AgregarHoja(workbook, "Stock", clsStockRepository.ListarStock("Todos", sede));
 
                 string archivo = CrearArchivoReporte($"StockGeneral_{sede}");
                 workbook.SaveAs(archivo);
@@ -46,6 +43,7 @@ namespace ControlStock
         public static string GenerarReporteClientes(string filtro)
         {
             DataTable datos = new clsCliente().BuscarClientes(filtro);
+            PrepararColumnasClientes(datos);
             using (XLWorkbook workbook = new XLWorkbook())
             {
                 IXLWorksheet hoja = workbook.Worksheets.Add("Clientes");
@@ -61,12 +59,38 @@ namespace ControlStock
                 return archivo;
             }
         }
+        public static string GenerarReporteStock(DataTable datos, string nombreReporte)
+        {
+            using (XLWorkbook workbook = new XLWorkbook())
+            {
+                IXLWorksheet hoja = workbook.Worksheets.Add("Stock");
+                hoja.Cell(1, 1).Value = "Listado de stock";
+                hoja.Cell(1, 1).Style.Font.Bold = true;
+                hoja.Cell(1, 1).Style.Font.FontSize = 14;
+                InsertarTablaSimple(hoja, 3, datos);
+                AplicarFormatoSimple(hoja);
+
+                string archivo = CrearArchivoReporte(nombreReporte);
+                workbook.SaveAs(archivo);
+                return archivo;
+            }
+        }
         public static string CrearArchivoReporte(string nombre)
         {
             string escritorio = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             string carpeta = Path.Combine(escritorio, "Reportes");
             Directory.CreateDirectory(carpeta);
-            return Path.Combine(carpeta, $"{nombre}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+            string nombreSeguro = string.IsNullOrWhiteSpace(nombre) ? "Reporte" : nombre.Trim();
+            foreach (char caracter in Path.GetInvalidFileNameChars())
+            {
+                nombreSeguro = nombreSeguro.Replace(caracter, '_');
+            }
+            string archivo = Path.Combine(carpeta, nombreSeguro + ".xlsx");
+            if (File.Exists(archivo))
+            {
+                File.Delete(archivo);
+            }
+            return archivo;
         }
         public static void AplicarEstilosListado(IXLWorksheet worksheet)
         {
@@ -113,6 +137,21 @@ namespace ControlStock
             string busqueda = string.IsNullOrWhiteSpace(filtro) ? "sin busqueda" : filtro;
             string clienteTexto = string.IsNullOrWhiteSpace(cliente) ? "todos los clientes" : cliente;
             return desde + " / " + hasta + " / " + tipoTexto + " / " + sedeTexto + " / " + rubroTexto + " / " + busqueda + " / " + clienteTexto;
+        }
+        private static void PrepararColumnasClientes(DataTable datos)
+        {
+            RenombrarColumna(datos, "IdCliente", "ID");
+            RenombrarColumna(datos, "DireccionComercial", "Direccion comercial");
+            RenombrarColumna(datos, "Cuit", "CUIT");
+            RenombrarColumna(datos, "CondicionIva", "Condicion frente al IVA");
+            RenombrarColumna(datos, "DireccionLegal", "Direccion legal");
+        }
+        private static void RenombrarColumna(DataTable datos, string actual, string nuevo)
+        {
+            if (datos.Columns.Contains(actual) && !datos.Columns.Contains(nuevo))
+            {
+                datos.Columns[actual].ColumnName = nuevo;
+            }
         }
     }
 }

@@ -6,20 +6,27 @@ namespace ControlStock
 {
     internal class clsCliente
     {
-        public void AgregarCliente(string empresa, string direccion, string telefono, string cuit, string email, string cuentaBancaria, string observaciones)
+        private static readonly string[] condicionesIva = { "Responsable inscripto", "Monotributista", "Exento", "Consumidor final" };
+
+        public static string[] ObtenerCondicionesIva()
         {
-            ValidarDatosCliente(empresa, direccion, telefono, cuit, email);
-            const string sql = "INSERT INTO Clientes (Empresa, Direccion, Telefono, Cuit, Email, CuentaBancaria, Observaciones) VALUES (@Empresa, @Direccion, @Telefono, @Cuit, @Email, @CuentaBancaria, @Observaciones)";
+            return (string[])condicionesIva.Clone();
+        }
+        public void AgregarCliente(string empresa, string direccionComercial, string telefono, string cuit, string email, string condicionIva, string direccionLegal, string observaciones)
+        {
+            ValidarDatosCliente(empresa, direccionComercial, telefono, cuit, email, condicionIva);
+            const string sql = "INSERT INTO Clientes (Empresa, DireccionComercial, Telefono, Cuit, Email, CondicionIva, DireccionLegal, Observaciones) VALUES (@Empresa, @DireccionComercial, @Telefono, @Cuit, @Email, @CondicionIva, @DireccionLegal, @Observaciones)";
 
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
             using (SQLiteCommand cmd = new SQLiteCommand(sql, connection))
             {
                 cmd.Parameters.AddWithValue("@Empresa", empresa.Trim());
-                cmd.Parameters.AddWithValue("@Direccion", string.IsNullOrWhiteSpace(direccion) ? (object)DBNull.Value : direccion.Trim());
+                cmd.Parameters.AddWithValue("@DireccionComercial", string.IsNullOrWhiteSpace(direccionComercial) ? (object)DBNull.Value : direccionComercial.Trim());
                 cmd.Parameters.AddWithValue("@Telefono", string.IsNullOrWhiteSpace(telefono) ? (object)DBNull.Value : telefono.Trim());
                 cmd.Parameters.AddWithValue("@Cuit", string.IsNullOrWhiteSpace(cuit) ? (object)DBNull.Value : cuit.Trim());
                 cmd.Parameters.AddWithValue("@Email", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim());
-                cmd.Parameters.AddWithValue("@CuentaBancaria", string.IsNullOrWhiteSpace(cuentaBancaria) ? (object)DBNull.Value : cuentaBancaria.Trim());
+                cmd.Parameters.AddWithValue("@CondicionIva", NormalizarCondicionIva(condicionIva));
+                cmd.Parameters.AddWithValue("@DireccionLegal", string.IsNullOrWhiteSpace(direccionLegal) ? (object)DBNull.Value : direccionLegal.Trim());
                 cmd.Parameters.AddWithValue("@Observaciones", string.IsNullOrWhiteSpace(observaciones) ? (object)DBNull.Value : observaciones.Trim());
                 cmd.ExecuteNonQuery();
             }
@@ -30,14 +37,14 @@ namespace ControlStock
         }
         public DataTable ListarClientesConId()
         {
-            const string sql = "SELECT IdCliente, Empresa, Direccion, Telefono, Cuit, Email, CuentaBancaria, Observaciones FROM Clientes ORDER BY Empresa";
+            const string sql = "SELECT IdCliente, Empresa, DireccionComercial, Telefono, Cuit, Email, CondicionIva, DireccionLegal, Observaciones FROM Clientes ORDER BY Empresa";
             return clsStockRepository.Consultar(sql);
         }
         public DataTable BuscarClientes(string textoBusqueda)
         {
             DataTable tabla = new DataTable();
             string filtro = "%" + textoBusqueda + "%";
-            const string sql = "SELECT IdCliente, Empresa, Direccion, Telefono, Cuit, Email, CuentaBancaria, Observaciones FROM Clientes WHERE Empresa LIKE @Filtro OR Direccion LIKE @Filtro OR Telefono LIKE @Filtro OR Cuit LIKE @Filtro OR Email LIKE @Filtro OR CuentaBancaria LIKE @Filtro ORDER BY Empresa";
+            const string sql = "SELECT IdCliente, Empresa, DireccionComercial, Telefono, Cuit, Email, CondicionIva, DireccionLegal, Observaciones FROM Clientes WHERE Empresa LIKE @Filtro OR DireccionComercial LIKE @Filtro OR Telefono LIKE @Filtro OR Cuit LIKE @Filtro OR Email LIKE @Filtro OR CondicionIva LIKE @Filtro OR DireccionLegal LIKE @Filtro ORDER BY Empresa";
 
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
             using (SQLiteCommand cmd = new SQLiteCommand(sql, connection))
@@ -48,35 +55,36 @@ namespace ControlStock
             }
             return tabla;
         }
-        public void EditarCliente(long idCliente, string empresa, string direccion, string telefono, string cuit, string email, string cuentaBancaria, string observaciones)
+        public void EditarCliente(long idCliente, string empresa, string direccionComercial, string telefono, string cuit, string email, string condicionIva, string direccionLegal, string observaciones)
         {
-            ValidarDatosCliente(empresa, direccion, telefono, cuit, email);
-            const string sql = "UPDATE Clientes SET Empresa = @Empresa, Direccion = @Direccion, Telefono = @Telefono, Cuit = @Cuit, Email = @Email, CuentaBancaria = @CuentaBancaria, Observaciones = @Observaciones WHERE IdCliente = @IdCliente";
+            ValidarDatosCliente(empresa, direccionComercial, telefono, cuit, email, condicionIva);
+            const string sql = "UPDATE Clientes SET Empresa = @Empresa, DireccionComercial = @DireccionComercial, Telefono = @Telefono, Cuit = @Cuit, Email = @Email, CondicionIva = @CondicionIva, DireccionLegal = @DireccionLegal, Observaciones = @Observaciones WHERE IdCliente = @IdCliente";
 
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
             using (SQLiteCommand cmd = new SQLiteCommand(sql, connection))
             {
                 cmd.Parameters.AddWithValue("@IdCliente", idCliente);
                 cmd.Parameters.AddWithValue("@Empresa", empresa.Trim());
-                cmd.Parameters.AddWithValue("@Direccion", string.IsNullOrWhiteSpace(direccion) ? (object)DBNull.Value : direccion.Trim());
+                cmd.Parameters.AddWithValue("@DireccionComercial", string.IsNullOrWhiteSpace(direccionComercial) ? (object)DBNull.Value : direccionComercial.Trim());
                 cmd.Parameters.AddWithValue("@Telefono", string.IsNullOrWhiteSpace(telefono) ? (object)DBNull.Value : telefono.Trim());
                 cmd.Parameters.AddWithValue("@Cuit", string.IsNullOrWhiteSpace(cuit) ? (object)DBNull.Value : cuit.Trim());
                 cmd.Parameters.AddWithValue("@Email", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim());
-                cmd.Parameters.AddWithValue("@CuentaBancaria", string.IsNullOrWhiteSpace(cuentaBancaria) ? (object)DBNull.Value : cuentaBancaria.Trim());
+                cmd.Parameters.AddWithValue("@CondicionIva", NormalizarCondicionIva(condicionIva));
+                cmd.Parameters.AddWithValue("@DireccionLegal", string.IsNullOrWhiteSpace(direccionLegal) ? (object)DBNull.Value : direccionLegal.Trim());
                 cmd.Parameters.AddWithValue("@Observaciones", string.IsNullOrWhiteSpace(observaciones) ? (object)DBNull.Value : observaciones.Trim());
                 cmd.ExecuteNonQuery();
             }
         }
-        private static void ValidarDatosCliente(string empresa, string direccion, string telefono, string cuit, string email)
+        private static void ValidarDatosCliente(string empresa, string direccionComercial, string telefono, string cuit, string email, string condicionIva)
         {
             if (string.IsNullOrWhiteSpace(empresa))
             {
                 throw new InvalidOperationException("La empresa es obligatoria.");
             }
 
-            if (string.IsNullOrWhiteSpace(direccion))
+            if (string.IsNullOrWhiteSpace(direccionComercial))
             {
-                throw new InvalidOperationException("La direccion de envio es obligatoria.");
+                throw new InvalidOperationException("La direccion comercial es obligatoria.");
             }
 
             if (string.IsNullOrWhiteSpace(telefono))
@@ -97,6 +105,11 @@ namespace ControlStock
             if (!string.IsNullOrWhiteSpace(email) && !EmailValido(email))
             {
                 throw new InvalidOperationException("El email no tiene un formato valido.");
+            }
+
+            if (!CondicionIvaValida(condicionIva))
+            {
+                throw new InvalidOperationException("Seleccione una condicion frente al IVA valida.");
             }
         }
         private static bool TelefonoValido(string telefono)
@@ -132,6 +145,26 @@ namespace ControlStock
             int arroba = valor.IndexOf('@');
             int punto = valor.LastIndexOf('.');
             return arroba > 0 && punto > arroba + 1 && punto < valor.Length - 1;
+        }
+        private static bool CondicionIvaValida(string condicionIva)
+        {
+            return !string.IsNullOrWhiteSpace(NormalizarCondicionIva(condicionIva));
+        }
+        private static string NormalizarCondicionIva(string condicionIva)
+        {
+            if (string.IsNullOrWhiteSpace(condicionIva))
+            {
+                return string.Empty;
+            }
+
+            foreach (string condicion in condicionesIva)
+            {
+                if (string.Equals(condicion, condicionIva.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return condicion;
+                }
+            }
+            return string.Empty;
         }
         public void EliminarCliente(long idCliente)
         {

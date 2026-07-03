@@ -20,6 +20,8 @@ namespace ControlStock
         {
             Text = "Tajamar Molduras - Sistema de Gestion de Stock";
             BackColor = Color.FromArgb(245, 247, 250);
+            MinimumSize = new Size(900, 600);
+            menuStrip1.Dock = DockStyle.Top;
             clsUi.AplicarMenu(menuStrip1);
         }
 
@@ -27,55 +29,70 @@ namespace ControlStock
         {
             menuStrip1.Items.Clear();
 
-            ToolStripMenuItem inicio = CrearMenu("Inicio");
-            inicio.DropDownItems.Add(Item("Dashboard", (sender, args) => new frmDashboard().Show()));
-            inicio.DropDownItems.Add(Item("Historial de movimientos", (sender, args) => new frmHistorialMovimientos().Show()));
+            if (clsSesion.PuedeVerEstadisticas)
+            {
+                ToolStripMenuItem inicio = CrearMenu("Inicio");
+                inicio.DropDownItems.Add(Item("Resumen de stock", (sender, args) => AbrirPantalla(new frmResumenStock())));
+                menuStrip1.Items.Add(inicio);
+            }
 
             ToolStripMenuItem stock = CrearMenu("Stock");
-            stock.DropDownItems.Add(Item("Listado de pino", (sender, args) => new frmListaStockPino().Show()));
-            stock.DropDownItems.Add(Item("Listado de maderas duras", (sender, args) => new frmListadoStockMaderasDuras().Show()));
-            stock.DropDownItems.Add(Item("Listado de machimbres", (sender, args) => new frmListaStockMachimbre().Show()));
-            stock.DropDownItems.Add(Item("Listado de fenolicos", (sender, args) => new frmListaStockFenólicos().Show()));
-            stock.DropDownItems.Add(new ToolStripSeparator());
-            stock.DropDownItems.Add(Item("Agregar pino", (sender, args) => new fmrAgregarNuevoPino().Show()));
-            stock.DropDownItems.Add(Item("Agregar madera dura", (sender, args) => new frmAgregarNuevaMaderaDura().Show()));
-            stock.DropDownItems.Add(Item("Agregar machimbre", (sender, args) => new frmAgregarNuevoMachimbre().Show()));
-            stock.DropDownItems.Add(Item("Agregar fenolico", (sender, args) => new frmAgregarNuevoFenólicos().Show()));
-            stock.DropDownItems.Add(new ToolStripSeparator());
-            stock.DropDownItems.Add(Item("Editar productos", (sender, args) => new frmEditarProductos().Show()));
-            stock.DropDownItems.Add(Item("Configurar stock minimo", (sender, args) => new frmStockMinimo().Show()));
-            stock.DropDownItems.Add(Item("Productos con stock bajo", (sender, args) => new frmStockBajo().Show()));
-            stock.DropDownItems.Add(Item("Transferencia entre sedes", (sender, args) => new frmTransferenciaStock().Show()));
+            stock.DropDownItems.Add(Item("Listado de stock", (sender, args) => AbrirPantalla(new frmListadoStock())));
+            if (clsSesion.PuedeAgregar)
+            {
+                stock.DropDownItems.Add(Item("Agregar producto", (sender, args) => AbrirPantalla(new frmAgregarProducto())));
+            }
+            if (clsSesion.PuedeEditar)
+            {
+                stock.DropDownItems.Add(new ToolStripSeparator());
+                stock.DropDownItems.Add(Item("Editar productos", (sender, args) => AbrirPantalla(new frmEditarProductos())));
+                stock.DropDownItems.Add(Item("Configurar stock minimo", (sender, args) => AbrirPantalla(new frmStockMinimo())));
+                stock.DropDownItems.Add(Item("Transferencia entre sedes", (sender, args) => AbrirPantalla(new frmTransferenciaStock())));
+            }
+            if (clsSesion.PuedeVerEstadisticas)
+            {
+                if (stock.DropDownItems.Count > 0)
+                {
+                    stock.DropDownItems.Add(new ToolStripSeparator());
+                }
+                stock.DropDownItems.Add(Item("Productos con stock bajo", (sender, args) => AbrirPantalla(new frmStockBajo())));
+            }
 
             ToolStripMenuItem clientes = CrearMenu("Clientes");
-            clientes.DropDownItems.Add(Item("Agregar cliente", (sender, args) => new frmAgregarCliente().Show()));
-            clientes.DropDownItems.Add(Item("Listado y edicion", (sender, args) => new frmListadoClientes().Show()));
+            if (clsSesion.PuedeAgregar)
+            {
+                clientes.DropDownItems.Add(Item("Agregar cliente", (sender, args) => AbrirPantalla(new frmAgregarCliente())));
+            }
+            clientes.DropDownItems.Add(Item(clsSesion.PuedeEditar ? "Listado y edicion" : "Listado de clientes", (sender, args) => AbrirPantalla(new frmListadoClientes())));
 
-            ToolStripMenuItem reportes = CrearMenu("Reportes");
-            reportes.DropDownItems.Add(Item("Reporte general Excel", reporteGeneral_Click));
-            reportes.DropDownItems.Add(Item("Historial de movimientos", (sender, args) => new frmHistorialMovimientos().Show()));
-            reportes.DropDownItems.Add(new ToolStripSeparator());
-            reportes.DropDownItems.Add(Item("Grafico pino", (sender, args) => new frmGráficoPino().Show()));
-            reportes.DropDownItems.Add(Item("Grafico maderas duras", (sender, args) => new frmGráficoMaderasDuras().Show()));
-            reportes.DropDownItems.Add(Item("Grafico machimbres", (sender, args) => new frmGráficoMachimbre().Show()));
-            reportes.DropDownItems.Add(Item("Grafico fenolicos", (sender, args) => new frmGráficosFenólicos().Show()));
+            ToolStripMenuItem reportes = null;
+            if (clsSesion.PuedeVerReportes)
+            {
+                reportes = CrearMenu("Reportes");
+                reportes.DropDownItems.Add(Item("Reporte general Excel", reporteGeneral_Click));
+                reportes.DropDownItems.Add(Item("Historial de movimientos", (sender, args) => AbrirPantalla(new frmHistorialMovimientos())));
+                reportes.DropDownItems.Add(new ToolStripSeparator());
+                reportes.DropDownItems.Add(Item("Grafico de stock", (sender, args) => AbrirPantalla(new frmGraficoStock())));
+            }
 
             ToolStripMenuItem sistema = CrearMenu("Sistema");
-            if (MostrarBackupManual)
+            if (MostrarBackupManual && clsSesion.EsAdministrador)
             {
                 sistema.DropDownItems.Add(Item("Backup manual", backup_Click));
                 sistema.DropDownItems.Add(new ToolStripSeparator());
             }
             sistema.DropDownItems.Add(Item("Salir", (sender, args) => Close()));
 
-            ToolStripMenuItem usuario = CrearMenu("Usuario: " + clsSesion.Usuario);
+            ToolStripMenuItem usuario = CrearMenu("Usuario: " + clsSesion.Usuario + " (" + clsSesion.Rol + ")");
             usuario.Alignment = ToolStripItemAlignment.Right;
             usuario.Enabled = false;
 
-            menuStrip1.Items.Add(inicio);
             menuStrip1.Items.Add(stock);
             menuStrip1.Items.Add(clientes);
-            menuStrip1.Items.Add(reportes);
+            if (reportes != null)
+            {
+                menuStrip1.Items.Add(reportes);
+            }
             menuStrip1.Items.Add(sistema);
             menuStrip1.Items.Add(usuario);
         }
@@ -96,15 +113,36 @@ namespace ControlStock
         {
             BeginInvoke(new Action(() =>
             {
-                frmDashboard ventana = new frmDashboard();
-                ventana.Show();
+                if (clsSesion.PuedeVerEstadisticas)
+                {
+                    AbrirPantalla(new frmResumenStock());
+                    return;
+                }
+                AbrirPantalla(new frmListadoStock());
             }));
+        }
+        private void AbrirPantalla(Form ventana)
+        {
+            using (ventana)
+            {
+                ventana.StartPosition = FormStartPosition.CenterParent;
+                ventana.FormBorderStyle = FormBorderStyle.Sizable;
+                ventana.MaximizeBox = true;
+                ventana.MinimizeBox = true;
+                ventana.WindowState = FormWindowState.Maximized;
+                ventana.ShowDialog(this);
+            }
         }
 
         private void reporteGeneral_Click(object sender, EventArgs e)
         {
             try
             {
+                if (!clsSesion.PuedeVerReportes)
+                {
+                    MessageBox.Show("El usuario actual no tiene permiso para generar reportes.");
+                    return;
+                }
                 string archivo = clsReportes.GenerarReporteGeneral(clsStockRepository.SedeTotal);
                 MessageBox.Show("Reporte general generado correctamente: " + archivo);
             }

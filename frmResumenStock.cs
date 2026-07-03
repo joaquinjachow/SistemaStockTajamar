@@ -4,12 +4,12 @@ using System.Windows.Forms;
 
 namespace ControlStock
 {
-    public class frmDashboard : Form
+    public class frmResumenStock : Form
     {
         private DataGridView grdResumen;
         private Label lblActualizado;
 
-        public frmDashboard()
+        public frmResumenStock()
         {
             InitializeComponent();
             clsUi.Aplicar(this);
@@ -35,18 +35,19 @@ namespace ControlStock
             grdResumen.Location = new Point(16, 58);
             grdResumen.ReadOnly = true;
             grdResumen.Size = new Size(620, 340);
+            grdResumen.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
 
             ClientSize = new Size(652, 414);
             Controls.Add(btnActualizar);
             Controls.Add(lblActualizado);
             Controls.Add(grdResumen);
-            Name = "frmDashboard";
+            Name = "frmResumenStock";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "Dashboard de stock";
-            Load += frmDashboard_Load;
+            Text = "Resumen de stock";
+            Load += frmResumenStock_Load;
         }
 
-        private void frmDashboard_Load(object sender, EventArgs e)
+        private void frmResumenStock_Load(object sender, EventArgs e)
         {
             CargarResumen();
         }
@@ -58,7 +59,7 @@ namespace ControlStock
 
         private void CargarResumen()
         {
-            grdResumen.DataSource = clsStockRepository.ObtenerResumenDashboard();
+            grdResumen.DataSource = clsStockRepository.ObtenerResumenStock();
             lblActualizado.Text = "Actualizado: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm");
         }
     }

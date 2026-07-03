@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -146,87 +146,20 @@
     <Compile Include="clsBackup.cs" />
     <Compile Include="clsCliente.cs" />
     <Compile Include="clsDatabase.cs" />
-    <Compile Include="clsFenolicos.cs" />
-    <Compile Include="clsMachimbre.cs" />
-    <Compile Include="clsMaderaDura.cs" />
-    <Compile Include="clsPino.cs" />
     <Compile Include="clsReportes.cs" />
     <Compile Include="clsSesion.cs" />
     <Compile Include="clsStockRepository.cs" />
     <Compile Include="clsUsuario.cs" />
     <Compile Include="clsUi.cs" />
     <Compile Include="clsWhatsApp.cs" />
-    <Compile Include="fmrAgregarNuevoPino.cs">
+    <Compile Include="frmAgregarProducto.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="fmrAgregarNuevoPino.Designer.cs">
-      <DependentUpon>fmrAgregarNuevoPino.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmAgregarNuevaMaderaDura.cs">
+    <Compile Include="frmListadoStock.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="frmAgregarNuevaMaderaDura.Designer.cs">
-      <DependentUpon>frmAgregarNuevaMaderaDura.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmAgregarNuevoFenólicos.cs">
+    <Compile Include="frmGraficoStock.cs">
       <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmAgregarNuevoFenólicos.Designer.cs">
-      <DependentUpon>frmAgregarNuevoFenólicos.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmAgregarNuevoMachimbre.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmAgregarNuevoMachimbre.Designer.cs">
-      <DependentUpon>frmAgregarNuevoMachimbre.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmGráficoMachimbre.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmGráficoMachimbre.Designer.cs">
-      <DependentUpon>frmGráficoMachimbre.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmGráficoMaderasDuras.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmGráficoMaderasDuras.Designer.cs">
-      <DependentUpon>frmGráficoMaderasDuras.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmGráficoPino.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmGráficoPino.Designer.cs">
-      <DependentUpon>frmGráficoPino.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmGráficosFenólicos.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmGráficosFenólicos.Designer.cs">
-      <DependentUpon>frmGráficosFenólicos.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmListadoStockMaderasDuras.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmListadoStockMaderasDuras.Designer.cs">
-      <DependentUpon>frmListadoStockMaderasDuras.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmListaStockFenólicos.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmListaStockFenólicos.Designer.cs">
-      <DependentUpon>frmListaStockFenólicos.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmListaStockMachimbre.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmListaStockMachimbre.Designer.cs">
-      <DependentUpon>frmListaStockMachimbre.cs</DependentUpon>
-    </Compile>
-    <Compile Include="frmListaStockPino.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="frmListaStockPino.Designer.cs">
-      <DependentUpon>frmListaStockPino.cs</DependentUpon>
     </Compile>
     <Compile Include="frmAgregarCliente.cs">
       <SubType>Form</SubType>
@@ -234,7 +167,7 @@
     <Compile Include="frmListadoClientes.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="frmDashboard.cs">
+    <Compile Include="frmResumenStock.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="frmEditarProductos.cs">
@@ -266,42 +199,6 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="fmrAgregarNuevoPino.resx">
-      <DependentUpon>fmrAgregarNuevoPino.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmAgregarNuevaMaderaDura.resx">
-      <DependentUpon>frmAgregarNuevaMaderaDura.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmAgregarNuevoFenólicos.resx">
-      <DependentUpon>frmAgregarNuevoFenólicos.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmAgregarNuevoMachimbre.resx">
-      <DependentUpon>frmAgregarNuevoMachimbre.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmGráficoMachimbre.resx">
-      <DependentUpon>frmGráficoMachimbre.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmGráficoMaderasDuras.resx">
-      <DependentUpon>frmGráficoMaderasDuras.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmGráficoPino.resx">
-      <DependentUpon>frmGráficoPino.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmGráficosFenólicos.resx">
-      <DependentUpon>frmGráficosFenólicos.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmListadoStockMaderasDuras.resx">
-      <DependentUpon>frmListadoStockMaderasDuras.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmListaStockFenólicos.resx">
-      <DependentUpon>frmListaStockFenólicos.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmListaStockMachimbre.resx">
-      <DependentUpon>frmListaStockMachimbre.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="frmListaStockPino.resx">
-      <DependentUpon>frmListaStockPino.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="frmSistemaControlStock.resx">
       <DependentUpon>frmSistemaControlStock.cs</DependentUpon>
     </EmbeddedResource>

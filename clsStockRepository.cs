@@ -19,6 +19,18 @@ namespace ControlStock
         {
             return Consultar("SELECT Nombre FROM Sedes ORDER BY Nombre;");
         }
+        public static DataTable ObtenerRubrosConTodos()
+        {
+            DataTable rubros = ObtenerRubros();
+            DataRow todos = rubros.NewRow();
+            todos["Rubro"] = "Todos";
+            rubros.Rows.InsertAt(todos, 0);
+            return rubros;
+        }
+        public static DataTable ObtenerRubros()
+        {
+            return Consultar("SELECT DISTINCT Rubro FROM Productos WHERE Activo = 1 ORDER BY Rubro;");
+        }
         public static DataTable ObtenerValores(string rubro, string campo)
         {
             string sql = $"SELECT DISTINCT {campo} FROM Productos WHERE Rubro = @Rubro AND Activo = 1 AND {campo} IS NOT NULL ORDER BY {campo};";
@@ -31,6 +43,18 @@ namespace ControlStock
         }
         public static void AgregarProducto(string rubro, string medida, string secado, string especie, string calidad, string espesor, int cantidadPorUnidad, string unidad, int cantidadInicial, string sedeInicial = clsDatabase.SedeCordoba)
         {
+            if (string.IsNullOrWhiteSpace(rubro))
+            {
+                throw new InvalidOperationException("El rubro es obligatorio.");
+            }
+            if (string.IsNullOrWhiteSpace(unidad))
+            {
+                throw new InvalidOperationException("La unidad es obligatoria.");
+            }
+            if (string.IsNullOrWhiteSpace(medida) && string.IsNullOrWhiteSpace(secado) && string.IsNullOrWhiteSpace(especie) && string.IsNullOrWhiteSpace(calidad) && string.IsNullOrWhiteSpace(espesor))
+            {
+                throw new InvalidOperationException("El producto debe tener al menos un campo descriptivo.");
+            }
             if (cantidadPorUnidad <= 0)
             {
                 throw new InvalidOperationException("La cantidad por unidad debe ser mayor a cero.");
@@ -44,10 +68,11 @@ namespace ControlStock
             {
                 throw new InvalidOperationException("Seleccione Cordoba o Misiones para el stock inicial.");
             }
+            string rubroNormalizado = rubro.Trim();
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
             using (SQLiteTransaction tx = connection.BeginTransaction())
             {
-                if (ExisteProducto(connection, tx, rubro, medida, secado, especie, calidad, espesor))
+                if (ExisteProducto(connection, tx, rubroNormalizado, medida, secado, especie, calidad, espesor))
                 {
                     throw new InvalidOperationException("Ya existe un producto activo con esos datos.");
                 }
@@ -57,14 +82,14 @@ namespace ControlStock
                 VALUES (@Rubro, @Medida, @Secado, @Especie, @Calidad, @Espesor, @CantidadPorUnidad, @Unidad);
                 SELECT last_insert_rowid();", connection, tx))
                 {
-                    cmd.Parameters.AddWithValue("@Rubro", rubro);
+                    cmd.Parameters.AddWithValue("@Rubro", rubroNormalizado);
                     cmd.Parameters.AddWithValue("@Medida", ValorDb(medida));
                     cmd.Parameters.AddWithValue("@Secado", ValorDb(secado));
                     cmd.Parameters.AddWithValue("@Especie", ValorDb(especie));
                     cmd.Parameters.AddWithValue("@Calidad", ValorDb(calidad));
                     cmd.Parameters.AddWithValue("@Espesor", ValorDb(espesor));
                     cmd.Parameters.AddWithValue("@CantidadPorUnidad", cantidadPorUnidad);
-                    cmd.Parameters.AddWithValue("@Unidad", unidad);
+                    cmd.Parameters.AddWithValue("@Unidad", unidad.Trim());
                     productoId = (long)cmd.ExecuteScalar();
                 }
                 InsertarStockInicial(connection, tx, productoId, clsDatabase.SedeCordoba, sede == clsDatabase.SedeCordoba ? cantidadInicial : 0);
@@ -73,108 +98,78 @@ namespace ControlStock
                 tx.Commit();
             }
         }
-        public static DataTable ListarPino(string sede = SedeTotal, string filtro = "")
+        public static DataTable ListarStock(string rubro = "Todos", string sede = SedeTotal, string filtro = "")
         {
             return Consultar(@"
                 SELECT
-                    P.Secado,
-                    P.Medida,
+                    P.IdProducto,
+                    P.Rubro,
+                    TRIM(COALESCE(P.Secado || ' ', '') || COALESCE(P.Especie || ' ', '') || COALESCE(P.Calidad || ' ', '') || COALESCE(P.Medida || ' ', '') || COALESCE(P.Espesor, '')) AS Producto,
+                    COALESCE(P.Medida, '') AS Medida,
+                    COALESCE(P.Secado, '') AS Secado,
+                    COALESCE(P.Especie, '') AS Especie,
+                    COALESCE(P.Calidad, '') AS Calidad,
+                    COALESCE(P.Espesor, '') AS Espesor,
+                    CASE WHEN @Sede = 'Total' THEN 'Total' ELSE SE.Nombre END AS Sede,
                     SUM(S.Cantidad) AS Cantidad,
+                    P.Unidad,
                     P.CantidadPorUnidad,
                     SUM(S.Cantidad) * P.CantidadPorUnidad AS Total
                 FROM Productos P
                 INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
                 INNER JOIN Sedes SE ON SE.IdSede = S.IdSede
-                WHERE P.Rubro = 'Pino' AND P.Activo = 1
+                WHERE P.Activo = 1
+                  AND (@Rubro = '' OR @Rubro = 'Todos' OR P.Rubro = @Rubro)
                   AND (@Sede = 'Total' OR SE.Nombre = @Sede)
-                  AND (@Filtro = '' OR P.Secado LIKE @FiltroLike OR P.Medida LIKE @FiltroLike)
-                GROUP BY P.IdProducto, P.Secado, P.Medida, P.CantidadPorUnidad
-                ORDER BY P.Secado, P.Medida;", Param("@Sede", NormalizarSede(sede)), Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)));
+                  AND (@Filtro = ''
+                       OR P.Rubro LIKE @FiltroLike
+                       OR P.Medida LIKE @FiltroLike
+                       OR P.Secado LIKE @FiltroLike
+                       OR P.Especie LIKE @FiltroLike
+                       OR P.Calidad LIKE @FiltroLike
+                       OR P.Espesor LIKE @FiltroLike)
+                GROUP BY
+                    P.IdProducto,
+                    P.Rubro,
+                    P.Medida,
+                    P.Secado,
+                    P.Especie,
+                    P.Calidad,
+                    P.Espesor,
+                    P.Unidad,
+                    P.CantidadPorUnidad,
+                    CASE WHEN @Sede = 'Total' THEN 'Total' ELSE SE.Nombre END
+                ORDER BY P.Rubro, Producto, Sede;", Param("@Rubro", NormalizarFiltro(rubro)), Param("@Sede", NormalizarSede(sede)), Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)));
         }
-        public static DataTable ListarMaderaDura(string sede = SedeTotal, string filtro = "")
+        public static DataTable ObtenerDatosGraficoStock(string rubro = "Todos", string sede = SedeTotal)
         {
             return Consultar(@"
-            SELECT
-                P.Especie,
-                P.Medida,
-                SUM(S.Cantidad) AS Cantidad,
-                P.CantidadPorUnidad,
-                SUM(S.Cantidad) * P.CantidadPorUnidad AS Total
-            FROM Productos P
-            INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
-            INNER JOIN Sedes SE ON SE.IdSede = S.IdSede
-            WHERE P.Rubro = 'MaderaDura' AND P.Activo = 1
-              AND (@Sede = 'Total' OR SE.Nombre = @Sede)
-              AND (@Filtro = '' OR P.Especie LIKE @FiltroLike OR P.Medida LIKE @FiltroLike)
-            GROUP BY P.IdProducto, P.Especie, P.Medida, P.CantidadPorUnidad
-            ORDER BY P.Especie, P.Medida;", Param("@Sede", NormalizarSede(sede)), Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)));
-                    }
-        public static DataTable ListarMachimbre(string sede = SedeTotal, string filtro = "")
-        {
-            return Consultar(@"
-            SELECT
-                P.Calidad,
-                P.Medida,
-                SUM(S.Cantidad) AS Cantidad,
-                P.CantidadPorUnidad,
-                SUM(S.Cantidad) * P.CantidadPorUnidad AS Total
-            FROM Productos P
-            INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
-            INNER JOIN Sedes SE ON SE.IdSede = S.IdSede
-            WHERE P.Rubro = 'Machimbre' AND P.Activo = 1
-              AND (@Sede = 'Total' OR SE.Nombre = @Sede)
-              AND (@Filtro = '' OR P.Calidad LIKE @FiltroLike OR P.Medida LIKE @FiltroLike)
-            GROUP BY P.IdProducto, P.Calidad, P.Medida, P.CantidadPorUnidad
-            ORDER BY P.Calidad, P.Medida;", Param("@Sede", NormalizarSede(sede)), Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)));
+                SELECT
+                    CASE
+                        WHEN @Rubro = '' OR @Rubro = 'Todos' THEN P.Rubro
+                        ELSE TRIM(COALESCE(P.Secado || ' ', '') || COALESCE(P.Especie || ' ', '') || COALESCE(P.Calidad || ' ', '') || COALESCE(P.Medida || ' ', '') || COALESCE(P.Espesor, ''))
+                    END AS Etiqueta,
+                    SUM(S.Cantidad) AS StockTotal
+                FROM Productos P
+                INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
+                INNER JOIN Sedes SE ON SE.IdSede = S.IdSede
+                WHERE P.Activo = 1
+                  AND (@Rubro = '' OR @Rubro = 'Todos' OR P.Rubro = @Rubro)
+                  AND (@Sede = 'Total' OR SE.Nombre = @Sede)
+                GROUP BY
+                    CASE
+                        WHEN @Rubro = '' OR @Rubro = 'Todos' THEN P.Rubro
+                        ELSE TRIM(COALESCE(P.Secado || ' ', '') || COALESCE(P.Especie || ' ', '') || COALESCE(P.Calidad || ' ', '') || COALESCE(P.Medida || ' ', '') || COALESCE(P.Espesor, ''))
+                    END
+                ORDER BY Etiqueta;", Param("@Rubro", NormalizarFiltro(rubro)), Param("@Sede", NormalizarSede(sede)));
         }
-        public static DataTable ListarFenolicos(string sede = SedeTotal, string filtro = "")
+        public static void SumarStock(long idProducto, int cantidad, string sede)
         {
-            return Consultar(@"
-            SELECT
-                P.Calidad,
-                P.Espesor,
-                P.CantidadPorUnidad,
-                SUM(S.Cantidad) AS Cantidad
-            FROM Productos P
-            INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
-            INNER JOIN Sedes SE ON SE.IdSede = S.IdSede
-            WHERE P.Rubro = 'Fenolicos' AND P.Activo = 1
-              AND (@Sede = 'Total' OR SE.Nombre = @Sede)
-              AND (@Filtro = '' OR P.Calidad LIKE @FiltroLike OR P.Espesor LIKE @FiltroLike)
-            GROUP BY P.IdProducto, P.Calidad, P.Espesor, P.CantidadPorUnidad
-            ORDER BY P.Calidad, P.Espesor;", Param("@Sede", NormalizarSede(sede)), Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)));
+            ActualizarStock(idProducto, cantidad, "Ingreso", sede, "Ingreso de stock", null);
         }
-        public static DataTable ObtenerStockPorMedida(string rubro)
+        public static void RestarStock(long idProducto, int cantidad, string sede, string detalle = "Egreso de stock", long? clienteId = null)
         {
-            return Consultar(@"
-            SELECT
-                COALESCE(P.Medida, P.Calidad, P.Especie, P.Espesor) AS Medida,
-                SUM(S.Cantidad) AS StockTotal
-            FROM Productos P
-            INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
-            WHERE P.Rubro = @Rubro AND P.Activo = 1
-            GROUP BY COALESCE(P.Medida, P.Calidad, P.Especie, P.Espesor)
-            ORDER BY Medida;", Param("@Rubro", rubro));
-        }
-        public static DataTable ObtenerStockFenolicosParaGrafico()
-        {
-            return Consultar(@"
-            SELECT
-                P.Calidad,
-                SUM(S.Cantidad) AS StockTotal
-            FROM Productos P
-            INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
-            WHERE P.Rubro = 'Fenolicos' AND P.Activo = 1
-            GROUP BY P.Calidad
-            ORDER BY P.Calidad;");
-        }
-        public static void SumarStock(string rubro, string medida, string secado, string especie, string calidad, string espesor, int cantidad, string sede = clsDatabase.SedeCordoba)
-        {
-            ActualizarStock(rubro, medida, secado, especie, calidad, espesor, cantidad, "Ingreso", sede, "Ingreso de stock", null);
-        }
-        public static void RestarStock(string rubro, string medida, string secado, string especie, string calidad, string espesor, int cantidad, string sede = clsDatabase.SedeCordoba, string detalle = "Egreso de stock", long? clienteId = null)
-        {
-            ActualizarStock(rubro, medida, secado, especie, calidad, espesor, -cantidad, "Egreso", sede, detalle, clienteId);
+            ActualizarStock(idProducto, -cantidad, "Egreso", sede, detalle, clienteId);
         }
         public static void TransferirStock(string rubro, string medida, string secado, string especie, string calidad, string espesor, int cantidad, string sedeOrigen, string sedeDestino, string detalle)
         {
@@ -240,9 +235,9 @@ namespace ControlStock
                        OR M.Tipo LIKE @FiltroLike
                        OR M.Detalle LIKE @FiltroLike
                        OR C.Empresa LIKE @FiltroLike
-                       OR U.Usuario LIKE @FiltroLike)
+                      OR U.Usuario LIKE @FiltroLike)
                 ORDER BY M.Fecha DESC, M.IdMovimiento DESC;", Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)), Param("@FechaDesde", NormalizarFiltro(fechaDesde)), Param("@FechaHasta", NormalizarFiltro(fechaHasta)), Param("@Tipo", NormalizarFiltro(tipo)), Param("@Sede", NormalizarFiltro(sede)), Param("@Rubro", NormalizarFiltro(rubro)), Param("@Cliente", NormalizarFiltro(cliente)), Param("@ClienteLike", FiltroLike(cliente)));
-                        }
+        }
         public static DataTable ListarStockBajo()
         {
             return Consultar(@"
@@ -278,7 +273,7 @@ namespace ControlStock
                    OR Producto LIKE @FiltroLike
                    OR SE.Nombre LIKE @FiltroLike)
             ORDER BY P.Rubro, Producto, SE.Nombre;", Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)));
-                    }
+        }
         public static void ActualizarStockMinimo(long idStock, int stockMinimo)
         {
             if (stockMinimo < 0)
@@ -293,7 +288,7 @@ namespace ControlStock
                 cmd.ExecuteNonQuery();
             }
         }
-        public static DataTable ObtenerResumenDashboard()
+        public static DataTable ObtenerResumenStock()
         {
             return Consultar(@"
                 SELECT
@@ -308,15 +303,16 @@ namespace ControlStock
                 GROUP BY P.Rubro, SE.Nombre
                 ORDER BY P.Rubro, SE.Nombre;");
         }
-        public static void EliminarProducto(string rubro, string medida, string secado, string especie, string calidad, string espesor)
+        public static void EliminarProducto(long idProducto)
         {
-            using (SQLiteConnection connection = clsDatabase.AbrirConexion())
-            using (SQLiteCommand cmd = new SQLiteCommand(@"
-            UPDATE Productos
-            SET Activo = 0
-            WHERE IdProducto = @IdProducto;", connection))
+            if (idProducto <= 0)
             {
-                cmd.Parameters.AddWithValue("@IdProducto", ObtenerProductoId(connection, rubro, medida, secado, especie, calidad, espesor));
+                throw new InvalidOperationException("Seleccione un producto valido.");
+            }
+            using (SQLiteConnection connection = clsDatabase.AbrirConexion())
+            using (SQLiteCommand cmd = new SQLiteCommand("UPDATE Productos SET Activo = 0 WHERE IdProducto = @IdProducto;", connection))
+            {
+                cmd.Parameters.AddWithValue("@IdProducto", idProducto);
                 cmd.ExecuteNonQuery();
             }
         }
@@ -401,8 +397,12 @@ namespace ControlStock
                 return table;
             }
         }
-        private static void ActualizarStock(string rubro, string medida, string secado, string especie, string calidad, string espesor, int delta, string tipo, string sede, string detalle, long? clienteId)
+        private static void ActualizarStock(long idProducto, int delta, string tipo, string sede, string detalle, long? clienteId)
         {
+            if (idProducto <= 0)
+            {
+                throw new InvalidOperationException("Seleccione un producto valido.");
+            }
             if (delta == 0)
             {
                 return;
@@ -414,9 +414,8 @@ namespace ControlStock
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
             using (SQLiteTransaction tx = connection.BeginTransaction())
             {
-                long productoId = ObtenerProductoId(connection, rubro, medida, secado, especie, calidad, espesor, tx);
                 long sedeId = ObtenerSedeId(connection, NormalizarSede(sede), tx);
-                int stockActual = ObtenerStockActual(connection, productoId, sedeId, tx);
+                int stockActual = ObtenerStockActual(connection, idProducto, sedeId, tx);
                 int nuevoStock = stockActual + delta;
 
                 if (nuevoStock < 0)
@@ -424,9 +423,9 @@ namespace ControlStock
                     throw new InvalidOperationException($"No hay stock suficiente en {NormalizarSede(sede)} para registrar el egreso.");
                 }
 
-                GuardarStock(connection, tx, productoId, sedeId, nuevoStock);
+                GuardarStock(connection, tx, idProducto, sedeId, nuevoStock);
 
-                RegistrarMovimiento(connection, tx, productoId, NormalizarSede(sede), tipo, Math.Abs(delta), detalle, clienteId, null);
+                RegistrarMovimiento(connection, tx, idProducto, NormalizarSede(sede), tipo, Math.Abs(delta), detalle, clienteId, null);
                 tx.Commit();
             }
         }
