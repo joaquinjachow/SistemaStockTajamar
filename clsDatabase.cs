@@ -87,7 +87,7 @@ namespace ControlStock
                 );");
                             Ejecutar(connection, @"
                 CREATE TABLE IF NOT EXISTS StockSede (
-                    IdStock INTEGER PRIMARY KEY AUTOINCREMENT,
+                    IdStockSede INTEGER PRIMARY KEY AUTOINCREMENT,
                     IdProducto INTEGER NOT NULL,
                     IdSede INTEGER NOT NULL,
                     Cantidad INTEGER NOT NULL DEFAULT 0 CHECK (Cantidad >= 0),
@@ -96,6 +96,7 @@ namespace ControlStock
                     FOREIGN KEY (IdProducto) REFERENCES Productos(IdProducto),
                     FOREIGN KEY (IdSede) REFERENCES Sedes(IdSede)
                 );");
+                            RenombrarColumnaSiExiste(connection, "StockSede", "IdStock", "IdStockSede");
                             Ejecutar(connection, @"
                 CREATE TABLE IF NOT EXISTS Clientes (
                     IdCliente INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,6 +224,13 @@ namespace ControlStock
             if (!ExisteColumna(connection, tabla, columna))
             {
                 Ejecutar(connection, $"ALTER TABLE {tabla} ADD COLUMN {columna} {definicion};");
+            }
+        }
+        private static void RenombrarColumnaSiExiste(SQLiteConnection connection, string tabla, string columnaActual, string columnaNueva)
+        {
+            if (ExisteColumna(connection, tabla, columnaActual) && !ExisteColumna(connection, tabla, columnaNueva))
+            {
+                Ejecutar(connection, $"ALTER TABLE {tabla} RENAME COLUMN {columnaActual} TO {columnaNueva};");
             }
         }
     }

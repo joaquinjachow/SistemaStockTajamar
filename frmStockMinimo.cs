@@ -81,7 +81,7 @@ namespace ControlStock
 
                 grdStock.EndEdit();
                 DataRowView row = (DataRowView)grdStock.CurrentRow.DataBoundItem;
-                clsStockRepository.ActualizarStockMinimo(Convert.ToInt64(row["IdStock"]), Convert.ToInt32(row["StockMinimo"]));
+                clsStockRepository.ActualizarStockMinimo(Convert.ToInt64(row["IdStockSede"]), Convert.ToInt32(row["StockMinimo"]));
                 MessageBox.Show("Stock minimo actualizado correctamente.");
                 CargarStock();
             }
@@ -104,9 +104,9 @@ namespace ControlStock
                 column.ReadOnly = column.Name != "StockMinimo";
             }
 
-            if (grdStock.Columns.Contains("IdStock"))
+            if (grdStock.Columns.Contains("IdStockSede"))
             {
-                grdStock.Columns["IdStock"].Visible = false;
+                grdStock.Columns["IdStockSede"].Visible = false;
             }
         }
     }

@@ -31,16 +31,6 @@ namespace ControlStock
         {
             return Consultar("SELECT DISTINCT Rubro FROM Productos WHERE Activo = 1 ORDER BY Rubro;");
         }
-        public static DataTable ObtenerValores(string rubro, string campo)
-        {
-            string sql = $"SELECT DISTINCT {campo} FROM Productos WHERE Rubro = @Rubro AND Activo = 1 AND {campo} IS NOT NULL ORDER BY {campo};";
-            return Consultar(sql, Param("@Rubro", rubro));
-        }
-        public static DataTable ObtenerValoresFiltrados(string rubro, string campoResultado, string campoFiltro, string valorFiltro)
-        {
-            string sql = $"SELECT DISTINCT {campoResultado} FROM Productos WHERE Rubro = @Rubro AND Activo = 1 AND {campoFiltro} = @Filtro AND {campoResultado} IS NOT NULL ORDER BY {campoResultado};";
-            return Consultar(sql, Param("@Rubro", rubro), Param("@Filtro", valorFiltro));
-        }
         public static void AgregarProducto(string rubro, string medida, string secado, string especie, string calidad, string espesor, int cantidadPorUnidad, string unidad, int cantidadInicial, string sedeInicial = clsDatabase.SedeCordoba)
         {
             if (string.IsNullOrWhiteSpace(rubro))
@@ -258,7 +248,7 @@ namespace ControlStock
         {
             return Consultar(@"
             SELECT
-                S.IdStock,
+                S.IdStockSede,
                 P.Rubro,
                 TRIM(COALESCE(P.Secado || ' ', '') || COALESCE(P.Especie || ' ', '') || COALESCE(P.Calidad || ' ', '') || COALESCE(P.Medida || ' ', '') || COALESCE(P.Espesor, '')) AS Producto,
                 SE.Nombre AS Sede,
@@ -274,16 +264,16 @@ namespace ControlStock
                    OR SE.Nombre LIKE @FiltroLike)
             ORDER BY P.Rubro, Producto, SE.Nombre;", Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)));
         }
-        public static void ActualizarStockMinimo(long idStock, int stockMinimo)
+        public static void ActualizarStockMinimo(long idStockSede, int stockMinimo)
         {
             if (stockMinimo < 0)
             {
                 throw new InvalidOperationException("El stock minimo no puede ser negativo.");
             }
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
-            using (SQLiteCommand cmd = new SQLiteCommand("UPDATE StockSede SET StockMinimo = @StockMinimo WHERE IdStock = @IdStock;", connection))
+            using (SQLiteCommand cmd = new SQLiteCommand("UPDATE StockSede SET StockMinimo = @StockMinimo WHERE IdStockSede = @IdStockSede;", connection))
             {
-                cmd.Parameters.AddWithValue("@IdStock", idStock);
+                cmd.Parameters.AddWithValue("@IdStockSede", idStockSede);
                 cmd.Parameters.AddWithValue("@StockMinimo", stockMinimo);
                 cmd.ExecuteNonQuery();
             }

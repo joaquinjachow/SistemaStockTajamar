@@ -92,17 +92,6 @@ namespace ControlStock
             }
             return archivo;
         }
-        public static void AplicarEstilosListado(IXLWorksheet worksheet)
-        {
-            worksheet.PageSetup.PageOrientation = XLPageOrientation.Landscape;
-            worksheet.PageSetup.PaperSize = XLPaperSize.A4Paper;
-            worksheet.CellsUsed().Style.Font.FontSize = 12;
-            worksheet.Cell("A1").Style.Font.FontSize = 22;
-            worksheet.Cells().Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range(worksheet.FirstCellUsed(), worksheet.LastCellUsed()).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-            worksheet.Range(worksheet.FirstCellUsed(), worksheet.LastCellUsed()).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-            worksheet.Columns().AdjustToContents();
-        }
         private static void AgregarHoja(XLWorkbook workbook, string nombre, DataTable datos)
         {
             IXLWorksheet hoja = workbook.Worksheets.Add(nombre);
