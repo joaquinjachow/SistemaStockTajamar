@@ -18,10 +18,6 @@ namespace ControlStock
                 return archivo;
             }
         }
-        public static string GenerarReporteHistorial(string filtro, string fechaDesde, string fechaHasta, string tipo, string sede, string rubro)
-        {
-            return GenerarReporteHistorial(filtro, fechaDesde, fechaHasta, tipo, sede, rubro, string.Empty);
-        }
         public static string GenerarReporteHistorial(string filtro, string fechaDesde, string fechaHasta, string tipo, string sede, string rubro, string cliente)
         {
             DataTable datos = clsStockRepository.ListarMovimientos(filtro, fechaDesde, fechaHasta, tipo, sede, rubro, cliente);
@@ -40,9 +36,10 @@ namespace ControlStock
                 return archivo;
             }
         }
-        public static string GenerarReporteClientes(string filtro)
+        public static string GenerarReporteClientes(string filtro, string estado = "Activos")
         {
-            DataTable datos = new clsCliente().BuscarClientes(filtro);
+            string estadoSeleccionado = string.IsNullOrWhiteSpace(estado) ? "Activos" : estado.Trim();
+            DataTable datos = new clsCliente().BuscarClientes(filtro, estadoSeleccionado);
             PrepararColumnasClientes(datos);
             using (XLWorkbook workbook = new XLWorkbook())
             {
@@ -50,7 +47,7 @@ namespace ControlStock
                 hoja.Cell(1, 1).Value = "Listado de clientes";
                 hoja.Cell(1, 1).Style.Font.Bold = true;
                 hoja.Cell(1, 1).Style.Font.FontSize = 14;
-                hoja.Cell(2, 1).Value = "Busqueda: " + (string.IsNullOrWhiteSpace(filtro) ? "sin filtro" : filtro.Trim());
+                hoja.Cell(2, 1).Value = "Estado: " + estadoSeleccionado + " | Busqueda: " + (string.IsNullOrWhiteSpace(filtro) ? "sin filtro" : filtro.Trim());
                 InsertarTablaSimple(hoja, 4, datos);
                 AplicarFormatoSimple(hoja);
 
@@ -85,12 +82,7 @@ namespace ControlStock
             {
                 nombreSeguro = nombreSeguro.Replace(caracter, '_');
             }
-            string archivo = Path.Combine(carpeta, nombreSeguro + ".xlsx");
-            if (File.Exists(archivo))
-            {
-                File.Delete(archivo);
-            }
-            return archivo;
+            return Path.Combine(carpeta, nombreSeguro + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff") + ".xlsx");
         }
         private static void AgregarHoja(XLWorkbook workbook, string nombre, DataTable datos)
         {

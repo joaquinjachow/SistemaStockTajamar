@@ -13,7 +13,6 @@ namespace ControlStock
         private ComboBox cmbDestino;
         private TextBox txtCantidad;
         private TextBox txtDetalle;
-        private DataTable productos;
 
         public frmTransferenciaStock()
         {
@@ -41,7 +40,6 @@ namespace ControlStock
             lblRubro.Location = new Point(18, 22);
             lblRubro.Text = "Rubro:";
             cmbRubro.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbRubro.Items.AddRange(new object[] { "Pino", "MaderaDura", "Machimbre", "Fenolicos" });
             cmbRubro.Location = new Point(112, 19);
             cmbRubro.Size = new Size(230, 21);
             cmbRubro.SelectedIndexChanged += cmbRubro_SelectedIndexChanged;
@@ -111,12 +109,17 @@ namespace ControlStock
             cmbOrigen.DisplayMember = "Nombre";
             cmbDestino.DataSource = sedes.Copy();
             cmbDestino.DisplayMember = "Nombre";
-            cmbRubro.SelectedIndex = 0;
+            cmbRubro.DataSource = clsStockRepository.ObtenerRubros();
+            cmbRubro.DisplayMember = "Rubro";
+            if (cmbRubro.Items.Count > 0)
+            {
+                cmbRubro.SelectedIndex = 0;
+            }
         }
 
         private void cmbRubro_SelectedIndexChanged(object sender, EventArgs e)
         {
-            productos = clsStockRepository.Consultar(@"
+            DataTable productos = clsStockRepository.Consultar(@"
 SELECT IdProducto, Rubro, Medida, Secado, Especie, Calidad, Espesor,
        TRIM(COALESCE(Secado || ' ', '') || COALESCE(Especie || ' ', '') || COALESCE(Calidad || ' ', '') || COALESCE(Medida || ' ', '') || COALESCE(Espesor, '')) AS Descripcion
 FROM Productos
@@ -138,12 +141,7 @@ ORDER BY Descripcion;", new System.Data.SQLite.SQLiteParameter("@Rubro", cmbRubr
 
                 DataRowView row = (DataRowView)cmbProducto.SelectedItem;
                 clsStockRepository.TransferirStock(
-                    cmbRubro.Text,
-                    row["Medida"].ToString(),
-                    row["Secado"].ToString(),
-                    row["Especie"].ToString(),
-                    row["Calidad"].ToString(),
-                    row["Espesor"].ToString(),
+                    Convert.ToInt64(row["IdProducto"]),
                     cantidad,
                     cmbOrigen.Text,
                     cmbDestino.Text,

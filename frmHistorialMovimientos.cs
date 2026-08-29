@@ -69,7 +69,7 @@ namespace ControlStock
             lblTipo.Location = new Point(16, 49);
             lblTipo.Text = "Tipo:";
             cmbTipo.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbTipo.Items.AddRange(new object[] { "Todos", "Alta", "Ingreso", "Egreso", "Ajuste", "Transferencia" });
+            cmbTipo.Items.AddRange(new object[] { "Todos", "Alta", "Ingreso", "Egreso", "Ajuste", "Transferencia", "Baja" });
             cmbTipo.Location = new Point(70, 46);
             cmbTipo.Size = new Size(150, 21);
 
@@ -84,7 +84,6 @@ namespace ControlStock
             lblRubro.Location = new Point(445, 49);
             lblRubro.Text = "Rubro:";
             cmbRubro.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbRubro.Items.AddRange(new object[] { "Todos", "Pino", "MaderaDura", "Machimbre", "Fenolicos" });
             cmbRubro.Location = new Point(495, 46);
             cmbRubro.Size = new Size(155, 21);
 
@@ -140,6 +139,8 @@ namespace ControlStock
         {
             cmbSede.DataSource = clsStockRepository.ObtenerSedesConTotal();
             cmbSede.DisplayMember = "Nombre";
+            cmbRubro.DataSource = clsStockRepository.ObtenerRubrosConTodos();
+            cmbRubro.DisplayMember = "Rubro";
             cmbTipo.SelectedIndex = 0;
             cmbRubro.SelectedIndex = 0;
             btnExportar.Visible = clsSesion.PuedeExportar;

@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS Clientes (
     CondicionIva TEXT NULL,
     DireccionLegal TEXT NULL,
     Observaciones TEXT NULL,
+    Activo INTEGER NOT NULL DEFAULT 1 CHECK (Activo IN (0, 1)),
     FechaAlta TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 CREATE TABLE IF NOT EXISTS Usuarios (
@@ -63,10 +64,20 @@ CREATE TABLE IF NOT EXISTS Movimientos (
     FOREIGN KEY (IdCliente) REFERENCES Clientes(IdCliente),
     FOREIGN KEY (IdUsuario) REFERENCES Usuarios(IdUsuario)
 );
+CREATE TABLE IF NOT EXISTS BajasProductos (
+    IdBajaProducto INTEGER PRIMARY KEY AUTOINCREMENT,
+    IdProducto INTEGER NOT NULL,
+    IdUsuario INTEGER NULL,
+    Fecha TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (IdProducto) REFERENCES Productos(IdProducto),
+    FOREIGN KEY (IdUsuario) REFERENCES Usuarios(IdUsuario)
+);
 INSERT OR IGNORE INTO Usuarios (Usuario, ClaveHash, Rol) VALUES
 ('admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', 'Administrador'),
 ('operario', 'a39ba034a2e1e73308a0291a1541aeee1290ffa697bca8342799ef19a7fa8c99', 'Operario'),
 ('compras', 'f74d0c877bba1b76db96b606bca17cd26b5103d0fa97e86b53a9f346211bb0fe', 'Compras');
 CREATE INDEX IF NOT EXISTS IX_Productos_Rubro ON Productos(Rubro, Activo);
+CREATE INDEX IF NOT EXISTS IX_Clientes_Activo ON Clientes(Activo, Empresa);
 CREATE INDEX IF NOT EXISTS IX_StockSede_Sede ON StockSede(IdSede);
 CREATE INDEX IF NOT EXISTS IX_Movimientos_ProductoFecha ON Movimientos(IdProducto, Fecha);
+CREATE INDEX IF NOT EXISTS IX_BajasProductos_Fecha ON BajasProductos(Fecha);

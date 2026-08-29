@@ -108,6 +108,7 @@ namespace ControlStock
                     CondicionIva TEXT NULL,
                     DireccionLegal TEXT NULL,
                     Observaciones TEXT NULL,
+                    Activo INTEGER NOT NULL DEFAULT 1 CHECK (Activo IN (0, 1)),
                     FechaAlta TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
                 );");
                             AgregarColumnaSiNoExiste(connection, "Clientes", "DireccionComercial", "TEXT NULL");
@@ -116,13 +117,14 @@ namespace ControlStock
                             AgregarColumnaSiNoExiste(connection, "Clientes", "CondicionIva", "TEXT NULL");
                             AgregarColumnaSiNoExiste(connection, "Clientes", "DireccionLegal", "TEXT NULL");
                             AgregarColumnaSiNoExiste(connection, "Clientes", "Observaciones", "TEXT NULL");
+                            AgregarColumnaSiNoExiste(connection, "Clientes", "Activo", "INTEGER NOT NULL DEFAULT 1 CHECK (Activo IN (0, 1))");
                             MigrarClientes(connection);
                             Ejecutar(connection, @"
                 CREATE TABLE IF NOT EXISTS Usuarios (
                     IdUsuario INTEGER PRIMARY KEY AUTOINCREMENT,
                     Usuario TEXT NOT NULL UNIQUE,
                     ClaveHash TEXT NOT NULL,
-                    Rol TEXT NOT NULL DEFAULT 'Operador',
+                    Rol TEXT NOT NULL DEFAULT 'Operario',
                     Activo INTEGER NOT NULL DEFAULT 1 CHECK (Activo IN (0, 1)),
                     FechaAlta TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
                 );");
@@ -134,22 +136,35 @@ namespace ControlStock
                     IdSede INTEGER NOT NULL,
                     IdSedeDestino INTEGER NULL,
                     IdCliente INTEGER NULL,
+                    IdUsuario INTEGER NULL,
                     Tipo TEXT NOT NULL CHECK (Tipo IN ('Alta', 'Ingreso', 'Egreso', 'Ajuste', 'Transferencia')),
                     Cantidad INTEGER NOT NULL CHECK (Cantidad > 0),
                     Detalle TEXT NULL,
                     FOREIGN KEY (IdProducto) REFERENCES Productos(IdProducto),
                     FOREIGN KEY (IdSede) REFERENCES Sedes(IdSede),
                     FOREIGN KEY (IdSedeDestino) REFERENCES Sedes(IdSede),
-                    FOREIGN KEY (IdCliente) REFERENCES Clientes(IdCliente)
+                    FOREIGN KEY (IdCliente) REFERENCES Clientes(IdCliente),
+                    FOREIGN KEY (IdUsuario) REFERENCES Usuarios(IdUsuario)
                 );");
             if (!ExisteColumna(connection, "Movimientos", "IdUsuario"))
             {
                 Ejecutar(connection, "ALTER TABLE Movimientos ADD COLUMN IdUsuario INTEGER NULL;");
             }
+            Ejecutar(connection, @"
+                CREATE TABLE IF NOT EXISTS BajasProductos (
+                    IdBajaProducto INTEGER PRIMARY KEY AUTOINCREMENT,
+                    IdProducto INTEGER NOT NULL,
+                    IdUsuario INTEGER NULL,
+                    Fecha TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                    FOREIGN KEY (IdProducto) REFERENCES Productos(IdProducto),
+                    FOREIGN KEY (IdUsuario) REFERENCES Usuarios(IdUsuario)
+                );");
             SembrarUsuarios(connection);
             Ejecutar(connection, "CREATE INDEX IF NOT EXISTS IX_Productos_Rubro ON Productos(Rubro, Activo);");
+            Ejecutar(connection, "CREATE INDEX IF NOT EXISTS IX_Clientes_Activo ON Clientes(Activo, Empresa);");
             Ejecutar(connection, "CREATE INDEX IF NOT EXISTS IX_StockSede_Sede ON StockSede(IdSede);");
             Ejecutar(connection, "CREATE INDEX IF NOT EXISTS IX_Movimientos_ProductoFecha ON Movimientos(IdProducto, Fecha);");
+            Ejecutar(connection, "CREATE INDEX IF NOT EXISTS IX_BajasProductos_Fecha ON BajasProductos(Fecha);");
         }
         private static void SembrarDatosMinimos(SQLiteConnection connection)
         {
@@ -195,14 +210,6 @@ namespace ControlStock
                 insertar.Parameters.AddWithValue("@ClaveHash", claveHash);
                 insertar.Parameters.AddWithValue("@Rol", rol);
                 insertar.ExecuteNonQuery();
-            }
-
-            using (SQLiteCommand actualizar = new SQLiteCommand("UPDATE Usuarios SET ClaveHash = @ClaveHash, Rol = @Rol, Activo = 1 WHERE Usuario = @Usuario;", connection))
-            {
-                actualizar.Parameters.AddWithValue("@Usuario", usuario);
-                actualizar.Parameters.AddWithValue("@ClaveHash", claveHash);
-                actualizar.Parameters.AddWithValue("@Rol", rol);
-                actualizar.ExecuteNonQuery();
             }
         }
         private static void MigrarClientes(SQLiteConnection connection)

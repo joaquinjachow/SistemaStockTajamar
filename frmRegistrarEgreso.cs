@@ -7,9 +7,8 @@ namespace ControlStock
 {
     public class frmRegistrarEgreso : Form
     {
-        private TextBox txtMotivo;
         private ComboBox cmbCliente;
-        public string Detalle { get; private set; }
+
         public long? ClienteId { get; private set; }
 
         public frmRegistrarEgreso()
@@ -20,41 +19,32 @@ namespace ControlStock
 
         private void InitializeComponent()
         {
-            Label lblMotivo = new Label();
             Label lblCliente = new Label();
             Button btnAceptar = new Button();
             Button btnCancelar = new Button();
-            txtMotivo = new TextBox();
             cmbCliente = new ComboBox();
 
-            lblMotivo.AutoSize = true;
-            lblMotivo.Location = new Point(16, 18);
-            lblMotivo.Text = "Motivo:";
-
-            txtMotivo.Location = new Point(90, 15);
-            txtMotivo.Size = new Size(335, 20);
-
             lblCliente.AutoSize = true;
-            lblCliente.Location = new Point(16, 55);
-            lblCliente.Text = "Cliente:";
+            lblCliente.Location = new Point(16, 22);
+            lblCliente.Text = "Cliente (opcional):";
 
             cmbCliente.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbCliente.Location = new Point(90, 52);
-            cmbCliente.Size = new Size(335, 21);
+            cmbCliente.Location = new Point(130, 19);
+            cmbCliente.Size = new Size(295, 21);
 
-            btnAceptar.Location = new Point(252, 95);
+            btnAceptar.Location = new Point(252, 62);
             btnAceptar.Size = new Size(83, 30);
-            btnAceptar.Text = "Aceptar";
+            btnAceptar.Text = "Registrar";
             btnAceptar.Click += btnAceptar_Click;
 
             btnCancelar.DialogResult = DialogResult.Cancel;
-            btnCancelar.Location = new Point(342, 95);
+            btnCancelar.Location = new Point(342, 62);
             btnCancelar.Size = new Size(83, 30);
             btnCancelar.Text = "Cancelar";
 
-            ClientSize = new Size(445, 143);
-            Controls.Add(lblMotivo);
-            Controls.Add(txtMotivo);
+            AcceptButton = btnAceptar;
+            CancelButton = btnCancelar;
+            ClientSize = new Size(445, 112);
             Controls.Add(lblCliente);
             Controls.Add(cmbCliente);
             Controls.Add(btnAceptar);
@@ -75,15 +65,20 @@ namespace ControlStock
             sinCliente["IdCliente"] = DBNull.Value;
             sinCliente["Empresa"] = "Sin cliente asociado";
             clientes.Rows.InsertAt(sinCliente, 0);
+
             cmbCliente.DataSource = clientes;
             cmbCliente.DisplayMember = "Empresa";
             cmbCliente.ValueMember = "IdCliente";
+            cmbCliente.SelectedIndex = 0;
         }
 
         private void btnAceptar_Click(object sender, EventArgs e)
         {
-            Detalle = string.IsNullOrWhiteSpace(txtMotivo.Text) ? "Egreso de stock" : txtMotivo.Text.Trim();
-            ClienteId = cmbCliente.SelectedValue == null || cmbCliente.SelectedValue == DBNull.Value ? (long?)null : Convert.ToInt64(cmbCliente.SelectedValue);
+            DataRowView clienteSeleccionado = cmbCliente.SelectedItem as DataRowView;
+            ClienteId = clienteSeleccionado == null || clienteSeleccionado.Row.IsNull("IdCliente")
+                ? (long?)null
+                : Convert.ToInt64(clienteSeleccionado["IdCliente"]);
+
             DialogResult = DialogResult.OK;
             Close();
         }

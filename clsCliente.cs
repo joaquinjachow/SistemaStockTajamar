@@ -37,23 +37,53 @@ namespace ControlStock
         }
         public DataTable ListarClientesConId()
         {
-            const string sql = "SELECT IdCliente, Empresa, DireccionComercial, Telefono, Cuit, Email, CondicionIva, DireccionLegal, Observaciones FROM Clientes ORDER BY Empresa";
+            const string sql = "SELECT IdCliente, Empresa, DireccionComercial, Telefono, Cuit, Email, CondicionIva, DireccionLegal, Observaciones FROM Clientes WHERE Activo = 1 ORDER BY Empresa";
             return clsStockRepository.Consultar(sql);
         }
-        public DataTable BuscarClientes(string textoBusqueda)
+        public DataTable BuscarClientes(string textoBusqueda, string estado = "Todos")
         {
             DataTable tabla = new DataTable();
             string filtro = "%" + textoBusqueda + "%";
-            const string sql = "SELECT IdCliente, Empresa, DireccionComercial, Telefono, Cuit, Email, CondicionIva, DireccionLegal, Observaciones FROM Clientes WHERE Empresa LIKE @Filtro OR DireccionComercial LIKE @Filtro OR Telefono LIKE @Filtro OR Cuit LIKE @Filtro OR Email LIKE @Filtro OR CondicionIva LIKE @Filtro OR DireccionLegal LIKE @Filtro ORDER BY Empresa";
+            const string sql = @"
+                SELECT IdCliente, Empresa, DireccionComercial, Telefono, Cuit, Email, CondicionIva, DireccionLegal, Observaciones,
+                       CASE WHEN Activo = 1 THEN 'Activo' ELSE 'Inactivo' END AS Estado
+                FROM Clientes
+                WHERE (@Estado = 'Todos'
+                       OR (@Estado = 'Activos' AND Activo = 1)
+                       OR (@Estado = 'Inactivos' AND Activo = 0))
+                  AND (Empresa LIKE @Filtro
+                       OR DireccionComercial LIKE @Filtro
+                       OR Telefono LIKE @Filtro
+                       OR Cuit LIKE @Filtro
+                       OR Email LIKE @Filtro
+                       OR CondicionIva LIKE @Filtro
+                       OR DireccionLegal LIKE @Filtro)
+                ORDER BY Activo DESC, Empresa";
 
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
             using (SQLiteCommand cmd = new SQLiteCommand(sql, connection))
             using (SQLiteDataAdapter adapter = new SQLiteDataAdapter(cmd))
             {
                 cmd.Parameters.AddWithValue("@Filtro", filtro);
+                cmd.Parameters.AddWithValue("@Estado", NormalizarEstado(estado));
                 adapter.Fill(tabla);
             }
             return tabla;
+        }
+
+        private static string NormalizarEstado(string estado)
+        {
+            if (string.Equals(estado, "Activos", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Activos";
+            }
+
+            if (string.Equals(estado, "Inactivos", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Inactivos";
+            }
+
+            return "Todos";
         }
         public void EditarCliente(long idCliente, string empresa, string direccionComercial, string telefono, string cuit, string email, string condicionIva, string direccionLegal, string observaciones)
         {
@@ -166,13 +196,21 @@ namespace ControlStock
             }
             return string.Empty;
         }
-        public void EliminarCliente(long idCliente)
+        public void DarDeBajaCliente(long idCliente)
         {
-            using (SQLiteConnection connection = clsDatabase.AbrirConexion())
-            using (SQLiteCommand cmd = new SQLiteCommand("DELETE FROM Clientes WHERE IdCliente = @IdCliente", connection))
+            if (idCliente <= 0)
             {
-                cmd.Parameters.AddWithValue("@IdCliente", idCliente);
-                cmd.ExecuteNonQuery();
+                throw new InvalidOperationException("Seleccione un cliente valido.");
+            }
+
+            using (SQLiteConnection connection = clsDatabase.AbrirConexion())
+            using (SQLiteCommand baja = new SQLiteCommand("UPDATE Clientes SET Activo = 0 WHERE IdCliente = @IdCliente AND Activo = 1", connection))
+            {
+                baja.Parameters.AddWithValue("@IdCliente", idCliente);
+                if (baja.ExecuteNonQuery() == 0)
+                {
+                    throw new InvalidOperationException("El cliente ya se encuentra inactivo o no existe.");
+                }
             }
         }
     }

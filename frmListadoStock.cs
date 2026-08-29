@@ -103,7 +103,7 @@ namespace ControlStock
 
             btnAgregar = CrearBoton("Agregar", 210, btnAgregar_Click);
             btnRestar = CrearBoton("Restar", 315, btnRestar_Click);
-            btnEliminar = CrearBoton("Eliminar", 420, btnEliminar_Click);
+            btnEliminar = CrearBoton("Dar de baja", 420, btnEliminar_Click);
             btnExportar = CrearBoton("Exportar", 570, btnExportar_Click);
             btnWhatsApp = CrearBoton("WhatsApp", 675, btnWhatsApp_Click);
 
@@ -194,14 +194,15 @@ namespace ControlStock
             bool esMaderaDura = rubro == "maderadura";
             bool esMachimbre = rubro == "machimbre";
             bool esFenolicos = rubro == "fenolicos";
+            bool esRubroPersonalizado = !todos && !esPino && !esMaderaDura && !esMachimbre && !esFenolicos;
 
-            MostrarColumna("Medida", todos || esPino || esMaderaDura || esMachimbre);
-            MostrarColumna("Secado", todos || esPino);
-            MostrarColumna("Especie", todos || esMaderaDura);
-            MostrarColumna("Calidad", todos || esMachimbre || esFenolicos);
-            MostrarColumna("Espesor", todos || esFenolicos);
+            MostrarColumna("Medida", todos || esRubroPersonalizado || esPino || esMaderaDura || esMachimbre);
+            MostrarColumna("Secado", todos || esRubroPersonalizado || esPino);
+            MostrarColumna("Especie", todos || esRubroPersonalizado || esMaderaDura);
+            MostrarColumna("Calidad", todos || esRubroPersonalizado || esMachimbre || esFenolicos);
+            MostrarColumna("Espesor", todos || esRubroPersonalizado || esFenolicos);
 
-            bool mostrarCantidadPorUnidad = todos || esPino || esMaderaDura;
+            bool mostrarCantidadPorUnidad = todos || esRubroPersonalizado || esPino || esMaderaDura;
             MostrarColumna("CantidadPorUnidad", mostrarCantidadPorUnidad);
             MostrarColumna("Total", mostrarCantidadPorUnidad);
 
@@ -337,7 +338,8 @@ namespace ControlStock
                     {
                         return;
                     }
-                    clsStockRepository.RestarStock(idProducto, cantidad, SedeSeleccionada, egreso.Detalle, egreso.ClienteId);
+
+                    clsStockRepository.RestarStock(idProducto, cantidad, SedeSeleccionada, egreso.ClienteId);
                 }
                 MessageBox.Show("Stock restado correctamente.");
                 txtCantidad.Clear();
@@ -355,25 +357,25 @@ namespace ControlStock
             {
                 if (!clsSesion.PuedeEditar)
                 {
-                    MessageBox.Show("El usuario actual no tiene permiso para eliminar productos.");
+                    MessageBox.Show("El usuario actual no tiene permiso para dar de baja productos.");
                     return;
                 }
                 if (!ProductoSeleccionado(out long idProducto))
                 {
                     return;
                 }
-                DialogResult confirmacion = MessageBox.Show("Seguro que desea eliminar el producto seleccionado?", "Confirmar eliminacion", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                DialogResult confirmacion = MessageBox.Show("Seguro que desea dar de baja el producto seleccionado? Se conservara en el historial.", "Confirmar baja", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirmacion != DialogResult.Yes)
                 {
                     return;
                 }
                 clsStockRepository.EliminarProducto(idProducto);
-                MessageBox.Show("Producto eliminado correctamente.");
+                MessageBox.Show("Producto dado de baja correctamente.");
                 ListarStock();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al eliminar producto: " + ex.Message);
+                MessageBox.Show("Error al dar de baja producto: " + ex.Message);
             }
         }
 

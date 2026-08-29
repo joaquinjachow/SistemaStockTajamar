@@ -48,12 +48,6 @@ namespace ControlStock
             Usuario = usuario;
             Rol = rol;
         }
-        public static void Cerrar()
-        {
-            IdUsuario = null;
-            Usuario = null;
-            Rol = null;
-        }
         private static bool TieneRol(string rol)
         {
             return string.Equals(Rol, rol, System.StringComparison.OrdinalIgnoreCase);

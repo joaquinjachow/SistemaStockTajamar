@@ -84,7 +84,10 @@ namespace ControlStock
                 }
                 InsertarStockInicial(connection, tx, productoId, clsDatabase.SedeCordoba, sede == clsDatabase.SedeCordoba ? cantidadInicial : 0);
                 InsertarStockInicial(connection, tx, productoId, clsDatabase.SedeMisiones, sede == clsDatabase.SedeMisiones ? cantidadInicial : 0);
-                RegistrarMovimiento(connection, tx, productoId, sede, "Alta", Math.Max(cantidadInicial, 1), "Alta de producto desde el sistema");
+                if (cantidadInicial > 0)
+                {
+                    RegistrarMovimiento(connection, tx, productoId, sede, "Alta", cantidadInicial, "Alta de producto desde el sistema");
+                }
                 tx.Commit();
             }
         }
@@ -157,12 +160,16 @@ namespace ControlStock
         {
             ActualizarStock(idProducto, cantidad, "Ingreso", sede, "Ingreso de stock", null);
         }
-        public static void RestarStock(long idProducto, int cantidad, string sede, string detalle = "Egreso de stock", long? clienteId = null)
+        public static void RestarStock(long idProducto, int cantidad, string sede, long? clienteId = null)
         {
-            ActualizarStock(idProducto, -cantidad, "Egreso", sede, detalle, clienteId);
+            ActualizarStock(idProducto, -cantidad, "Egreso", sede, "Egreso de stock", clienteId);
         }
-        public static void TransferirStock(string rubro, string medida, string secado, string especie, string calidad, string espesor, int cantidad, string sedeOrigen, string sedeDestino, string detalle)
+        public static void TransferirStock(long productoId, int cantidad, string sedeOrigen, string sedeDestino, string detalle)
         {
+            if (productoId <= 0)
+            {
+                throw new InvalidOperationException("Seleccione un producto valido.");
+            }
             if (cantidad <= 0)
             {
                 throw new InvalidOperationException("La cantidad a transferir debe ser mayor a cero.");
@@ -174,7 +181,10 @@ namespace ControlStock
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
             using (SQLiteTransaction tx = connection.BeginTransaction())
             {
-                long productoId = ObtenerProductoId(connection, rubro, medida, secado, especie, calidad, espesor, tx);
+                if (!ProductoActivoExiste(connection, tx, productoId))
+                {
+                    throw new InvalidOperationException("No se encontro el producto seleccionado.");
+                }
                 long origenId = ObtenerSedeId(connection, NormalizarSede(sedeOrigen), tx);
                 long destinoId = ObtenerSedeId(connection, NormalizarSede(sedeDestino), tx);
                 int stockOrigen = ObtenerStockActual(connection, productoId, origenId, tx);
@@ -190,13 +200,9 @@ namespace ControlStock
                 tx.Commit();
             }
         }
-        public static DataTable ListarMovimientos(string filtro = "")
-        {
-            return ListarMovimientos(filtro, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
-        }
         public static DataTable ListarMovimientos(string filtro, string fechaDesde, string fechaHasta, string tipo, string sede, string rubro, string cliente = "")
         {
-            return Consultar(@"
+            DataTable movimientos = Consultar(@"
                 SELECT
                     M.Fecha,
                     P.Rubro,
@@ -227,6 +233,46 @@ namespace ControlStock
                        OR C.Empresa LIKE @FiltroLike
                       OR U.Usuario LIKE @FiltroLike)
                 ORDER BY M.Fecha DESC, M.IdMovimiento DESC;", Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)), Param("@FechaDesde", NormalizarFiltro(fechaDesde)), Param("@FechaHasta", NormalizarFiltro(fechaHasta)), Param("@Tipo", NormalizarFiltro(tipo)), Param("@Sede", NormalizarFiltro(sede)), Param("@Rubro", NormalizarFiltro(rubro)), Param("@Cliente", NormalizarFiltro(cliente)), Param("@ClienteLike", FiltroLike(cliente)));
+
+            DataTable bajas = Consultar(@"
+                SELECT
+                    B.Fecha,
+                    P.Rubro,
+                    TRIM(COALESCE(P.Secado || ' ', '') || COALESCE(P.Especie || ' ', '') || COALESCE(P.Calidad || ' ', '') || COALESCE(P.Medida || ' ', '') || COALESCE(P.Espesor, '')) AS Producto,
+                    'Sin sede' AS Sede,
+                    'Baja' AS Tipo,
+                    0 AS Cantidad,
+                    '' AS Cliente,
+                    COALESCE(U.Usuario, '') AS Usuario,
+                    'Producto dado de baja' AS Detalle
+                FROM BajasProductos B
+                INNER JOIN Productos P ON P.IdProducto = B.IdProducto
+                LEFT JOIN Usuarios U ON U.IdUsuario = B.IdUsuario
+                WHERE (@FechaDesde = '' OR date(B.Fecha) >= date(@FechaDesde))
+                  AND (@FechaHasta = '' OR date(B.Fecha) <= date(@FechaHasta))
+                  AND (@Tipo = '' OR @Tipo = 'Todos' OR @Tipo = 'Baja')
+                  AND (@Sede = '' OR @Sede = 'Total' OR @Sede = 'Sin sede')
+                  AND (@Rubro = '' OR @Rubro = 'Todos' OR P.Rubro = @Rubro)
+                  AND @Cliente = ''
+                  AND (@Filtro = ''
+                       OR P.Rubro LIKE @FiltroLike
+                       OR Producto LIKE @FiltroLike
+                       OR 'Sin sede' LIKE @FiltroLike
+                       OR 'Baja' LIKE @FiltroLike
+                       OR 'Producto dado de baja' LIKE @FiltroLike
+                       OR U.Usuario LIKE @FiltroLike);", Param("@Filtro", NormalizarFiltro(filtro)), Param("@FiltroLike", FiltroLike(filtro)), Param("@FechaDesde", NormalizarFiltro(fechaDesde)), Param("@FechaHasta", NormalizarFiltro(fechaHasta)), Param("@Tipo", NormalizarFiltro(tipo)), Param("@Sede", NormalizarFiltro(sede)), Param("@Rubro", NormalizarFiltro(rubro)), Param("@Cliente", NormalizarFiltro(cliente)));
+
+            foreach (DataRow baja in bajas.Rows)
+            {
+                DataRow movimiento = movimientos.NewRow();
+                foreach (DataColumn columna in movimientos.Columns)
+                {
+                    movimiento[columna.ColumnName] = bajas.Columns.Contains(columna.ColumnName) ? baja[columna.ColumnName] : DBNull.Value;
+                }
+                movimientos.Rows.Add(movimiento);
+            }
+            movimientos.DefaultView.Sort = "Fecha DESC";
+            return movimientos.DefaultView.ToTable();
         }
         public static DataTable ListarStockBajo()
         {
@@ -300,10 +346,29 @@ namespace ControlStock
                 throw new InvalidOperationException("Seleccione un producto valido.");
             }
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
-            using (SQLiteCommand cmd = new SQLiteCommand("UPDATE Productos SET Activo = 0 WHERE IdProducto = @IdProducto;", connection))
+            using (SQLiteTransaction tx = connection.BeginTransaction())
             {
-                cmd.Parameters.AddWithValue("@IdProducto", idProducto);
-                cmd.ExecuteNonQuery();
+                using (SQLiteCommand stock = new SQLiteCommand("SELECT COALESCE(SUM(Cantidad), 0) FROM StockSede WHERE IdProducto = @IdProducto;", connection, tx))
+                {
+                    stock.Parameters.AddWithValue("@IdProducto", idProducto);
+                    if (Convert.ToInt32(stock.ExecuteScalar()) > 0)
+                    {
+                        throw new InvalidOperationException("No se puede dar de baja un producto con stock disponible. Registre los egresos o transferencias necesarios antes de continuar.");
+                    }
+                }
+
+                using (SQLiteCommand cmd = new SQLiteCommand("UPDATE Productos SET Activo = 0 WHERE IdProducto = @IdProducto AND Activo = 1;", connection, tx))
+                {
+                    cmd.Parameters.AddWithValue("@IdProducto", idProducto);
+                    if (cmd.ExecuteNonQuery() == 0)
+                    {
+                        throw new InvalidOperationException("El producto ya se encuentra inactivo o no existe.");
+                    }
+                }
+
+                RegistrarBajaProducto(connection, tx, idProducto);
+
+                tx.Commit();
             }
         }
         public static DataTable ListarProductos(string filtro = "")
@@ -349,26 +414,44 @@ namespace ControlStock
                 throw new InvalidOperationException("El producto debe tener al menos un dato descriptivo.");
             }
             using (SQLiteConnection connection = clsDatabase.AbrirConexion())
-            using (SQLiteCommand cmd = new SQLiteCommand(@"
-                UPDATE Productos
-                SET Medida = @Medida,
-                    Secado = @Secado,
-                    Especie = @Especie,
-                    Calidad = @Calidad,
-                    Espesor = @Espesor,
-                    CantidadPorUnidad = @CantidadPorUnidad,
-                    Unidad = @Unidad
-                WHERE IdProducto = @IdProducto;", connection))
+            using (SQLiteTransaction tx = connection.BeginTransaction())
             {
-                cmd.Parameters.AddWithValue("@IdProducto", idProducto);
-                cmd.Parameters.AddWithValue("@Medida", ValorDb(medida));
-                cmd.Parameters.AddWithValue("@Secado", ValorDb(secado));
-                cmd.Parameters.AddWithValue("@Especie", ValorDb(especie));
-                cmd.Parameters.AddWithValue("@Calidad", ValorDb(calidad));
-                cmd.Parameters.AddWithValue("@Espesor", ValorDb(espesor));
-                cmd.Parameters.AddWithValue("@CantidadPorUnidad", cantidadPorUnidad);
-                cmd.Parameters.AddWithValue("@Unidad", unidad.Trim());
-                cmd.ExecuteNonQuery();
+                string rubro = ObtenerRubroProducto(connection, tx, idProducto);
+                if (string.IsNullOrWhiteSpace(rubro))
+                {
+                    throw new InvalidOperationException("El producto ya se encuentra inactivo o no existe.");
+                }
+                if (ExisteProducto(connection, tx, rubro, medida, secado, especie, calidad, espesor, idProducto))
+                {
+                    throw new InvalidOperationException("Ya existe otro producto activo con esos datos.");
+                }
+
+                using (SQLiteCommand cmd = new SQLiteCommand(@"
+                    UPDATE Productos
+                    SET Medida = @Medida,
+                        Secado = @Secado,
+                        Especie = @Especie,
+                        Calidad = @Calidad,
+                        Espesor = @Espesor,
+                        CantidadPorUnidad = @CantidadPorUnidad,
+                        Unidad = @Unidad
+                    WHERE IdProducto = @IdProducto AND Activo = 1;", connection, tx))
+                {
+                    cmd.Parameters.AddWithValue("@IdProducto", idProducto);
+                    cmd.Parameters.AddWithValue("@Medida", ValorDb(medida));
+                    cmd.Parameters.AddWithValue("@Secado", ValorDb(secado));
+                    cmd.Parameters.AddWithValue("@Especie", ValorDb(especie));
+                    cmd.Parameters.AddWithValue("@Calidad", ValorDb(calidad));
+                    cmd.Parameters.AddWithValue("@Espesor", ValorDb(espesor));
+                    cmd.Parameters.AddWithValue("@CantidadPorUnidad", cantidadPorUnidad);
+                    cmd.Parameters.AddWithValue("@Unidad", unidad.Trim());
+                    if (cmd.ExecuteNonQuery() == 0)
+                    {
+                        throw new InvalidOperationException("El producto ya se encuentra inactivo o no existe.");
+                    }
+                }
+
+                tx.Commit();
             }
         }
         public static DataTable Consultar(string sql, params SQLiteParameter[] parameters)
@@ -419,13 +502,14 @@ namespace ControlStock
                 tx.Commit();
             }
         }
-        private static bool ExisteProducto(SQLiteConnection connection, SQLiteTransaction tx, string rubro, string medida, string secado, string especie, string calidad, string espesor)
+        private static bool ExisteProducto(SQLiteConnection connection, SQLiteTransaction tx, string rubro, string medida, string secado, string especie, string calidad, string espesor, long? idProductoExcluido = null)
         {
             using (SQLiteCommand cmd = new SQLiteCommand(@"
             SELECT COUNT(*)
             FROM Productos
             WHERE Rubro = @Rubro
               AND Activo = 1
+              AND (@IdProductoExcluido IS NULL OR IdProducto <> @IdProductoExcluido)
               AND COALESCE(Medida, '') = COALESCE(@Medida, '')
               AND COALESCE(Secado, '') = COALESCE(@Secado, '')
               AND COALESCE(Especie, '') = COALESCE(@Especie, '')
@@ -438,36 +522,25 @@ namespace ControlStock
                 cmd.Parameters.AddWithValue("@Especie", ValorDb(especie));
                 cmd.Parameters.AddWithValue("@Calidad", ValorDb(calidad));
                 cmd.Parameters.AddWithValue("@Espesor", ValorDb(espesor));
+                cmd.Parameters.AddWithValue("@IdProductoExcluido", idProductoExcluido.HasValue ? (object)idProductoExcluido.Value : DBNull.Value);
                 return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
             }
         }
-        private static long ObtenerProductoId(SQLiteConnection connection, string rubro, string medida, string secado, string especie, string calidad, string espesor, SQLiteTransaction tx = null)
+        private static bool ProductoActivoExiste(SQLiteConnection connection, SQLiteTransaction tx, long idProducto)
         {
-            using (SQLiteCommand cmd = new SQLiteCommand(@"
-            SELECT IdProducto
-            FROM Productos
-            WHERE Rubro = @Rubro
-              AND Activo = 1
-              AND COALESCE(Medida, '') = COALESCE(@Medida, '')
-              AND COALESCE(Secado, '') = COALESCE(@Secado, '')
-              AND COALESCE(Especie, '') = COALESCE(@Especie, '')
-              AND COALESCE(Calidad, '') = COALESCE(@Calidad, '')
-              AND COALESCE(Espesor, '') = COALESCE(@Espesor, '')
-            LIMIT 1;", connection, tx))
+            using (SQLiteCommand cmd = new SQLiteCommand("SELECT COUNT(*) FROM Productos WHERE IdProducto = @IdProducto AND Activo = 1;", connection, tx))
             {
-                cmd.Parameters.AddWithValue("@Rubro", rubro);
-                cmd.Parameters.AddWithValue("@Medida", ValorDb(medida));
-                cmd.Parameters.AddWithValue("@Secado", ValorDb(secado));
-                cmd.Parameters.AddWithValue("@Especie", ValorDb(especie));
-                cmd.Parameters.AddWithValue("@Calidad", ValorDb(calidad));
-                cmd.Parameters.AddWithValue("@Espesor", ValorDb(espesor));
-                object result = cmd.ExecuteScalar();
-                if (result == null || result == DBNull.Value)
-                {
-                    throw new InvalidOperationException("No se encontro el producto seleccionado.");
-                }
-
-                return Convert.ToInt64(result);
+                cmd.Parameters.AddWithValue("@IdProducto", idProducto);
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+        }
+        private static string ObtenerRubroProducto(SQLiteConnection connection, SQLiteTransaction tx, long idProducto)
+        {
+            using (SQLiteCommand cmd = new SQLiteCommand("SELECT Rubro FROM Productos WHERE IdProducto = @IdProducto AND Activo = 1;", connection, tx))
+            {
+                cmd.Parameters.AddWithValue("@IdProducto", idProducto);
+                object resultado = cmd.ExecuteScalar();
+                return resultado == null || resultado == DBNull.Value ? string.Empty : resultado.ToString();
             }
         }
 
@@ -517,6 +590,17 @@ namespace ControlStock
         private static void RegistrarMovimiento(SQLiteConnection connection, SQLiteTransaction tx, long productoId, string sede, string tipo, int cantidad, string detalle)
         {
             RegistrarMovimiento(connection, tx, productoId, sede, tipo, cantidad, detalle, null, null);
+        }
+        private static void RegistrarBajaProducto(SQLiteConnection connection, SQLiteTransaction tx, long productoId)
+        {
+            using (SQLiteCommand cmd = new SQLiteCommand(@"
+                INSERT INTO BajasProductos (IdProducto, IdUsuario)
+                VALUES (@IdProducto, @IdUsuario);", connection, tx))
+            {
+                cmd.Parameters.AddWithValue("@IdProducto", productoId);
+                cmd.Parameters.AddWithValue("@IdUsuario", clsSesion.IdUsuario.HasValue ? (object)clsSesion.IdUsuario.Value : DBNull.Value);
+                cmd.ExecuteNonQuery();
+            }
         }
         private static void RegistrarMovimiento(SQLiteConnection connection, SQLiteTransaction tx, long productoId, string sede, string tipo, int cantidad, string detalle, long? clienteId, string sedeDestino)
         {

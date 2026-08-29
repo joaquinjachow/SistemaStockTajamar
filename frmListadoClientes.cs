@@ -11,6 +11,7 @@ namespace ControlStock
         private GroupBox grpListado;
         private DataGridView grdClientes;
         private TextBox txtBuscar;
+        private ComboBox cmbEstado;
         private Button btnBuscar;
         private Button btnListar;
         private Button btnGuardar;
@@ -27,8 +28,10 @@ namespace ControlStock
         private void InitializeComponent()
         {
             Label lblBuscar = new Label();
+            Label lblEstado = new Label();
             grpListado = new GroupBox();
             txtBuscar = new TextBox();
+            cmbEstado = new ComboBox();
             btnBuscar = new Button();
             btnListar = new Button();
             btnGuardar = new Button();
@@ -42,6 +45,8 @@ namespace ControlStock
 
             grpListado.Controls.Add(lblBuscar);
             grpListado.Controls.Add(txtBuscar);
+            grpListado.Controls.Add(lblEstado);
+            grpListado.Controls.Add(cmbEstado);
             grpListado.Controls.Add(btnBuscar);
             grpListado.Controls.Add(btnListar);
             grpListado.Controls.Add(btnGuardar);
@@ -64,6 +69,22 @@ namespace ControlStock
             txtBuscar.Location = new Point(68, 27);
             txtBuscar.Name = "txtBuscar";
             txtBuscar.Size = new Size(430, 20);
+
+            lblEstado.AutoSize = true;
+            lblEstado.Location = new Point(738, 30);
+            lblEstado.Name = "lblEstado";
+            lblEstado.Size = new Size(43, 13);
+            lblEstado.Text = "Estado:";
+            lblEstado.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            cmbEstado.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbEstado.Items.AddRange(new object[] { "Activos", "Inactivos", "Todos" });
+            cmbEstado.Location = new Point(790, 27);
+            cmbEstado.Name = "cmbEstado";
+            cmbEstado.Size = new Size(165, 21);
+            cmbEstado.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            cmbEstado.SelectedIndex = 0;
+            cmbEstado.SelectedIndexChanged += cmbEstado_SelectedIndexChanged;
 
             btnBuscar.Location = new Point(510, 23);
             btnBuscar.Name = "btnBuscar";
@@ -91,7 +112,7 @@ namespace ControlStock
             btnEliminar.Name = "btnEliminar";
             btnEliminar.Size = new Size(105, 27);
             btnEliminar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnEliminar.Text = "Eliminar";
+            btnEliminar.Text = "Dar de baja";
             btnEliminar.UseVisualStyleBackColor = true;
             btnEliminar.Click += btnEliminar_Click;
 
@@ -138,20 +159,20 @@ namespace ControlStock
 
         private void btnListar_Click(object sender, EventArgs e)
         {
+            txtBuscar.Clear();
             CargarListadoCompleto();
         }
 
         private void btnBuscar_Click(object sender, EventArgs e)
         {
-            try
+            CargarListadoCompleto();
+        }
+
+        private void cmbEstado_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (IsHandleCreated)
             {
-                DataTable tabla = cliente.BuscarClientes(txtBuscar.Text.Trim());
-                grdClientes.DataSource = tabla;
-                ConfigurarColumnas();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al buscar clientes: " + ex.Message);
+                CargarListadoCompleto();
             }
         }
 
@@ -159,7 +180,7 @@ namespace ControlStock
         {
             try
             {
-                grdClientes.DataSource = cliente.ListarClientes();
+                grdClientes.DataSource = cliente.BuscarClientes(txtBuscar.Text.Trim(), cmbEstado.Text);
                 ConfigurarColumnas();
             }
             catch (Exception ex)
@@ -205,7 +226,7 @@ namespace ControlStock
             {
                 if (!clsSesion.PuedeEditar)
                 {
-                    MessageBox.Show("El usuario actual no tiene permiso para eliminar clientes.");
+                    MessageBox.Show("El usuario actual no tiene permiso para dar de baja clientes.");
                     return;
                 }
                 if (grdClientes.CurrentRow == null)
@@ -214,20 +235,24 @@ namespace ControlStock
                     return;
                 }
 
-                DialogResult confirmacion = MessageBox.Show("Seguro que desea eliminar el cliente seleccionado?", "Confirmar eliminacion", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                DialogResult confirmacion = MessageBox.Show("Seguro que desea dar de baja el cliente seleccionado? No podra seleccionarse en nuevos egresos, pero se conservara en el historial.", "Confirmar baja", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirmacion != DialogResult.Yes)
                 {
                     return;
                 }
 
                 DataRowView row = (DataRowView)grdClientes.CurrentRow.DataBoundItem;
-                cliente.EliminarCliente(Convert.ToInt64(row["IdCliente"]));
-                MessageBox.Show("Cliente eliminado correctamente.");
+                cliente.DarDeBajaCliente(Convert.ToInt64(row["IdCliente"]));
+                MessageBox.Show("Cliente dado de baja correctamente.");
                 CargarListadoCompleto();
+            }
+            catch (InvalidOperationException ex)
+            {
+                MessageBox.Show(ex.Message);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al eliminar cliente: " + ex.Message);
+                MessageBox.Show("Error al dar de baja el cliente: " + ex.Message);
             }
         }
 
@@ -240,7 +265,7 @@ namespace ControlStock
                     MessageBox.Show("El usuario actual no tiene permiso para exportar clientes.");
                     return;
                 }
-                string archivo = clsReportes.GenerarReporteClientes(txtBuscar.Text.Trim());
+                string archivo = clsReportes.GenerarReporteClientes(txtBuscar.Text.Trim(), cmbEstado.Text);
                 MessageBox.Show("Reporte de clientes generado correctamente: " + archivo);
             }
             catch (Exception ex)
@@ -304,6 +329,12 @@ namespace ControlStock
             if (grdClientes.Columns.Contains("Observaciones"))
             {
                 grdClientes.Columns["Observaciones"].HeaderText = "Observaciones";
+            }
+
+            if (grdClientes.Columns.Contains("Estado"))
+            {
+                grdClientes.Columns["Estado"].HeaderText = "Estado";
+                grdClientes.Columns["Estado"].ReadOnly = true;
             }
             grdClientes.ReadOnly = !clsSesion.PuedeEditar;
         }

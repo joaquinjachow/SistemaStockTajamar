@@ -6,8 +6,6 @@ namespace ControlStock
 {
     public partial class frmSistemaControlStock : Form
     {
-        private static readonly bool MostrarBackupManual = false;
-
         public frmSistemaControlStock()
         {
             InitializeComponent();
@@ -76,7 +74,7 @@ namespace ControlStock
             }
 
             ToolStripMenuItem sistema = CrearMenu("Sistema");
-            if (MostrarBackupManual && clsSesion.EsAdministrador)
+            if (clsSesion.EsAdministrador)
             {
                 sistema.DropDownItems.Add(Item("Backup manual", backup_Click));
                 sistema.DropDownItems.Add(new ToolStripSeparator());
