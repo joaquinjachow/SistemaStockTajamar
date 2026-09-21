@@ -113,6 +113,7 @@ namespace ControlStock
             {
                 if (clsSesion.PuedeVerEstadisticas)
                 {
+                    AbrirPantalla(new frmStockBajo());
                     AbrirPantalla(new frmResumenStock());
                     return;
                 }

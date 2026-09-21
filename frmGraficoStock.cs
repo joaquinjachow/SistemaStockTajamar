@@ -11,6 +11,7 @@ namespace ControlStock
         private ComboBox cmbRubro;
         private ComboBox cmbSede;
         private ComboBox cmbTipoGrafico;
+        private CheckBox chkCompararSedes;
         private Chart chartStock;
 
         public frmGraficoStock()
@@ -54,6 +55,11 @@ namespace ControlStock
             cmbTipoGrafico.Items.AddRange(new object[] { "Barras", "Torta" });
             cmbTipoGrafico.SelectedIndex = 0;
 
+            chkCompararSedes = new CheckBox();
+            chkCompararSedes.AutoSize = true;
+            chkCompararSedes.Location = new Point(15, 48);
+            chkCompararSedes.Text = "Comparar Cordoba y Misiones";
+
             Button btnActualizar = new Button();
             btnActualizar.Text = "Actualizar";
             btnActualizar.Location = new Point(625, 12);
@@ -61,8 +67,8 @@ namespace ControlStock
             btnActualizar.Click += (sender, args) => CargarGrafico();
 
             chartStock = new Chart();
-            chartStock.Location = new Point(12, 55);
-            chartStock.Size = new Size(790, 465);
+            chartStock.Location = new Point(12, 78);
+            chartStock.Size = new Size(790, 442);
             chartStock.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
 
             Controls.Add(lblRubro);
@@ -71,6 +77,7 @@ namespace ControlStock
             Controls.Add(cmbSede);
             Controls.Add(lblTipo);
             Controls.Add(cmbTipoGrafico);
+            Controls.Add(chkCompararSedes);
             Controls.Add(btnActualizar);
             Controls.Add(chartStock);
 
@@ -78,6 +85,7 @@ namespace ControlStock
             cmbRubro.SelectedIndexChanged += (sender, args) => CargarGrafico();
             cmbSede.SelectedIndexChanged += (sender, args) => CargarGrafico();
             cmbTipoGrafico.SelectedIndexChanged += (sender, args) => CargarGrafico();
+            chkCompararSedes.CheckedChanged += chkCompararSedes_CheckedChanged;
         }
 
         private void frmGraficoStock_Load(object sender, EventArgs e)
@@ -90,13 +98,18 @@ namespace ControlStock
             CargarGrafico();
         }
 
+        private void chkCompararSedes_CheckedChanged(object sender, EventArgs e)
+        {
+            cmbSede.Enabled = !chkCompararSedes.Checked;
+            CargarGrafico();
+        }
+
         private void CargarGrafico()
         {
-            if (cmbRubro == null || cmbSede == null || cmbTipoGrafico == null || chartStock == null)
+            if (cmbRubro == null || cmbSede == null || cmbTipoGrafico == null || chkCompararSedes == null || chartStock == null)
             {
                 return;
             }
-            DataTable datos = clsStockRepository.ObtenerDatosGraficoStock(cmbRubro.Text, cmbSede.Text);
             chartStock.Series.Clear();
             chartStock.ChartAreas.Clear();
             chartStock.Titles.Clear();
@@ -106,6 +119,19 @@ namespace ControlStock
             area.AxisX.Interval = 1;
             area.AxisX.LabelStyle.Angle = -35;
             chartStock.ChartAreas.Add(area);
+
+            if (chkCompararSedes.Checked)
+            {
+                CargarComparacionSedes();
+                return;
+            }
+
+            CargarStockSimple();
+        }
+
+        private void CargarStockSimple()
+        {
+            DataTable datos = clsStockRepository.ObtenerDatosGraficoStock(cmbRubro.Text, cmbSede.Text);
             chartStock.Titles.Add("Stock por " + (cmbRubro.Text == "Todos" ? "rubro" : "producto"));
 
             Series serie = new Series();
@@ -125,6 +151,52 @@ namespace ControlStock
             {
                 serie.Points.AddXY(Convert.ToString(row["Etiqueta"]), Convert.ToInt32(row["StockTotal"]));
             }
+        }
+
+        private void CargarComparacionSedes()
+        {
+            DataTable datos = clsStockRepository.ObtenerDatosComparacionSedesGraficoStock(cmbRubro.Text);
+            string agrupacion = cmbRubro.Text == "Todos" ? "rubro" : "producto";
+            chartStock.Titles.Add("Comparacion Cordoba vs Misiones por " + agrupacion);
+
+            if (cmbTipoGrafico.Text == "Torta")
+            {
+                Series serie = CrearSerie("Stock por sede", SeriesChartType.Pie);
+                chartStock.Legends.Add(new Legend("Referencias"));
+                serie.Legend = "Referencias";
+                serie.Label = "#PERCENT{P0}";
+                serie.LegendText = "#VALX";
+
+                foreach (DataRow row in datos.Rows)
+                {
+                    string etiqueta = Convert.ToString(row["Etiqueta"]);
+                    serie.Points.AddXY(etiqueta + " - Cordoba", Convert.ToInt32(row["StockCordoba"]));
+                    serie.Points.AddXY(etiqueta + " - Misiones", Convert.ToInt32(row["StockMisiones"]));
+                }
+                return;
+            }
+
+            Series cordoba = CrearSerie("Cordoba", SeriesChartType.Column);
+            Series misiones = CrearSerie("Misiones", SeriesChartType.Column);
+            foreach (DataRow row in datos.Rows)
+            {
+                string etiqueta = Convert.ToString(row["Etiqueta"]);
+                cordoba.Points.AddXY(etiqueta, Convert.ToInt32(row["StockCordoba"]));
+                misiones.Points.AddXY(etiqueta, Convert.ToInt32(row["StockMisiones"]));
+            }
+            chartStock.Legends.Add(new Legend("Sedes"));
+            cordoba.Legend = "Sedes";
+            misiones.Legend = "Sedes";
+        }
+
+        private Series CrearSerie(string nombre, SeriesChartType tipo)
+        {
+            Series serie = new Series();
+            serie.Name = nombre;
+            serie.ChartType = tipo;
+            serie.IsValueShownAsLabel = true;
+            chartStock.Series.Add(serie);
+            return serie;
         }
     }
 }

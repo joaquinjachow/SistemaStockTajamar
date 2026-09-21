@@ -156,6 +156,28 @@ namespace ControlStock
                     END
                 ORDER BY Etiqueta;", Param("@Rubro", NormalizarFiltro(rubro)), Param("@Sede", NormalizarSede(sede)));
         }
+        public static DataTable ObtenerDatosComparacionSedesGraficoStock(string rubro = "Todos")
+        {
+            return Consultar(@"
+                SELECT
+                    CASE
+                        WHEN @Rubro = '' OR @Rubro = 'Todos' THEN P.Rubro
+                        ELSE TRIM(COALESCE(P.Secado || ' ', '') || COALESCE(P.Especie || ' ', '') || COALESCE(P.Calidad || ' ', '') || COALESCE(P.Medida || ' ', '') || COALESCE(P.Espesor, ''))
+                    END AS Etiqueta,
+                    SUM(CASE WHEN SE.Nombre = @SedeCordoba THEN S.Cantidad ELSE 0 END) AS StockCordoba,
+                    SUM(CASE WHEN SE.Nombre = @SedeMisiones THEN S.Cantidad ELSE 0 END) AS StockMisiones
+                FROM Productos P
+                INNER JOIN StockSede S ON S.IdProducto = P.IdProducto
+                INNER JOIN Sedes SE ON SE.IdSede = S.IdSede
+                WHERE P.Activo = 1
+                  AND (@Rubro = '' OR @Rubro = 'Todos' OR P.Rubro = @Rubro)
+                GROUP BY
+                    CASE
+                        WHEN @Rubro = '' OR @Rubro = 'Todos' THEN P.Rubro
+                        ELSE TRIM(COALESCE(P.Secado || ' ', '') || COALESCE(P.Especie || ' ', '') || COALESCE(P.Calidad || ' ', '') || COALESCE(P.Medida || ' ', '') || COALESCE(P.Espesor, ''))
+                    END
+                ORDER BY Etiqueta;", Param("@Rubro", NormalizarFiltro(rubro)), Param("@SedeCordoba", clsDatabase.SedeCordoba), Param("@SedeMisiones", clsDatabase.SedeMisiones));
+        }
         public static void SumarStock(long idProducto, int cantidad, string sede)
         {
             ActualizarStock(idProducto, cantidad, "Ingreso", sede, "Ingreso de stock", null);
